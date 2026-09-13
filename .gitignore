@@ -1,0 +1,63 @@
+# ============================================================
+#  LoongArch CDP-EDE 实验工作区
+# ============================================================
+
+# ---------- func 编译产物（Makefile: clean -> rm -rf obj）----------
+mycpu_env/func/obj/
+
+# ---------- Vivado 工程 / 仿真产物 ----------
+*.jou
+*.log
+.Xil/
+*.cache/
+*.hw/
+*.sim/
+*.ip_user_files/
+*.runs/
+*.gen/
+*.srcs/
+xsim.dir/
+*.wdb
+*.pb
+*.str
+webtalk*
+vivado*.backup.*
+*.xpr.bak
+
+# ---------- 仿真输出 ----------
+gettrace/golden_trace.txt
+*.vcd
+*.fsdb
+*.wlf
+*.lxt
+*.lxt2
+*.vvp
+transcript
+vsim.wlf
+work/
+modelsim.ini
+
+# ---------- 编译中间产物 ----------
+*.o
+*.elf
+*.d
+*.a
+*.bin
+*.map
+*.su
+*.dmp
+
+# ---------- 编辑器 / 操作系统 ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 注意：以下文件是实验必需输入，必须保持跟踪，不要加入忽略规则
+#   for_test_obj/exN_obj/inst_ram.{mif,coe}
+#   for_test_obj/exN_obj/data_ram.{mif,coe}
+#   for_test_obj/exN_obj/rom.vlog
+#   for_test_obj/exN_obj/test.s
