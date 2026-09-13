@@ -55,6 +55,7 @@ modelsim.ini
 *~
 .DS_Store
 Thumbs.db
+obj
 
 # 注意：以下文件是实验必需输入，必须保持跟踪，不要加入忽略规则
 #   for_test_obj/exN_obj/inst_ram.{mif,coe}
