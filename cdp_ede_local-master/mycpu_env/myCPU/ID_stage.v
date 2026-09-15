@@ -29,7 +29,6 @@ module ID_stage(
 
     wire [11:0] alu_op;
 
-    wire load_op; //加载信号
     wire src1_is_pc; //来自src为pc地址
     wire src2_is_imm; //src2为imm
     wire res_from_mem; //result来自mem
@@ -239,19 +238,20 @@ module ID_stage(
             rf_wdata //31:0
             } = ws_to_rf_bus;
 
-    assign ds_to_es_bus = {alu_op,
-                           load_op,
-                           src1_is_pc,
-                           src2_is_imm,
-                           src2_is_4,
-                           gr_we,
-                           mem_we,
-                           dest,
-                           imm,
-                           rj_value,
-                           rkd_value,
-                           ds_pc,
-                           res_from_mem};
+    assign ds_to_es_bus = {
+        alu_op,//12
+        src1_is_pc,//1
+        src2_is_imm,//1
+        src2_is_4,//1
+        gr_we,//1
+        mem_we,//1
+        dest,//5
+        imm,//32
+        rj_value,//32
+        rkd_value,//32
+        ds_pc,//32
+        res_from_mem//1
+    };
 
     //////////////////////////////////////////////////
     assign ds_ready_go = 1'b1;

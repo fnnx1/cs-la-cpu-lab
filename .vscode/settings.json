@@ -1,0 +1,37 @@
+{
+  // ===================== 语言服务器：verible-verilog-ls =====================
+  // 提供跨文件跳转定义 / 悬停 / 补全 / 符号查找（.v 与 .sv 都生效）。
+  // 注意：verible-verilog-ls 的诊断与格式化能力被本扩展屏蔽（避免与下面的
+  // linter/formatter 重复），它只负责“导航”类功能。
+  "verilog.languageServer.veribleVerilogLs.enabled": true,
+  "verilog.languageServer.veribleVerilogLs.path": "/usr/bin/verible-verilog-ls",
+  "verilog.languageServer.veribleVerilogLs.arguments": "",
+
+  // 其余语言服务器保持关闭，避免重复的诊断/补全结果。
+  // 本项目是纯 Verilog（.v），而 svls / veridian 只对 SystemVerilog（.sv）生效。
+  "verilog.languageServer.svls.enabled": false,
+  "verilog.languageServer.veridian.enabled": false,
+  "verilog.languageServer.hdlChecker.enabled": false,
+
+  // ===================== 语法检查：Icarus Verilog =====================
+  // 打开/保存文件时自动运行；也可在命令面板执行 “Verilog: Rerun lint tool”。
+  "verilog.linting.linter": "iverilog",
+  "verilog.linting.iverilog.includePath": [
+    // ID_stage.v / IF_stage.v 里的 `include "mycpu_head.v"
+    "cdp_ede_local-master/mycpu_env/myCPU",
+    // cpu_cde.h / test_define.h 等头文件所在目录
+    "cdp_ede_local-master/mycpu_env/func/include"
+  ],
+  // 单文件 lint 时 iverilog 只编译当前文件，会把 IF_stage / regfile / alu 等
+  // 报成 “Unknown module type”。-y 让它按“模块名 = 文件名”去 myCPU/ 目录补找定义；
+  // tools.v 里的 decoder_* 文件名与模块名不一致，所以额外把它列进来。
+  // 副作用：编辑 tools.v 本身时会重复编译报 “has already been declared”，
+  //         此时可临时删掉最后一个路径。
+  "verilog.linting.iverilog.arguments": "-y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
+
+  // ===================== 格式化：verible-verilog-format =====================
+  // 选中代码后 Shift+Alt+F 即可；注意不支持“仅格式化选中范围”。
+  "verilog.formatting.verilogHDL.formatter": "verible-verilog-format",
+  "verilog.formatting.systemVerilog.formatter": "verible-verilog-format",
+  "verilog.formatting.veribleVerilogFormatter.path": "/usr/bin/verible-verilog-format"
+}
