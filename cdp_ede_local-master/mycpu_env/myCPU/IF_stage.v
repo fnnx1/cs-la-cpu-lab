@@ -30,7 +30,7 @@ module IF_stage(
     assign {br_taken, br_target} = br_bus; //跳转信号传递
 
     wire [31:0] fs_inst; //fs阶段的inst和pc,往后传递
-    reg [31:0] fs_pc; // 定义为已经取过指的pc值
+    reg [31:0] fs_pc; // 定义为已经取好指的最后pc值
 
     //if向id传递的bus
     assign fs_to_ds_bus = {fs_inst, fs_pc};
@@ -65,8 +65,8 @@ module IF_stage(
     end
 
 
-    assign inst_sram_en = to_fs_valid && fs_allowin; //
-    assign inst_sram_we = 4'h0; //写
+    assign inst_sram_en = to_fs_valid && fs_allowin;
+    assign inst_sram_we = 4'h0; //读
     assign inst_sram_addr = next_pc;
     assign inst_sram_wdata = 32'b0;
 
