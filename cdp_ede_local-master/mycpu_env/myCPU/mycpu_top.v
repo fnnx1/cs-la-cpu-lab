@@ -5,7 +5,7 @@ module mycpu_top(
     input  wire        resetn,
     // inst sram interface
     output wire [ 3:0] inst_sram_we,
-    output wire        inst_srame_en,
+    output wire        inst_sram_en,
     output wire [31:0] inst_sram_addr,
     output wire [31:0] inst_sram_wdata,
     input  wire [31:0] inst_sram_rdata,
@@ -33,151 +33,97 @@ module mycpu_top(
 
     wire [`BR_BUS_WD-1:0] br_bus;
 
-    wire [31:0] inst_baddr;   // IF 级字节地址(byte address), 由顶层统一转成字地址
-
-    // fs到ds的总线
+    // 流水线级间总线
     wire [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus;
     wire ds_allowin; // 前递信号
     wire fs_to_ds_valid; //后递信号
-
+    //
     wire [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus;
     wire es_allowin;
     wire ds_to_es_valid;
-
+    //
     wire [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus;
     wire ms_allowin;
     wire es_to_ms_valid;
-
+    //
     wire [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus;
     wire ws_allowin;
     wire ms_to_ws_valid;
-
+    //
     wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus;
     wire rf_allowin;
     wire ws_to_rf_valid;
 
     IF_stage u_IF_stage(
-        .clk            (clk            ),
-        .reset          (reset          ),
-        .ds_allowin     (ds_allowin     ),
-        .br_bus         (br_bus         ),
-        .fs_to_ds_valid (fs_to_ds_valid ),
-        .fs_to_ds_bus   (fs_to_ds_bus   ),
-        .inst_sram_en   (inst_sram_en   ),
-        .inst_sram_we   (inst_sram_we   ),
-        .inst_sram_addr (inst_baddr     ),
+        .clk(clk),
+        .reset(reset),
+        .ds_allowin(ds_allowin),
+        .br_bus(br_bus),
+        .fs_to_ds_valid(fs_to_ds_valid),
+        .fs_to_ds_bus(fs_to_ds_bus),
+        .inst_sram_en(inst_sram_en),
+        .inst_sram_we(inst_sram_we),
+        .inst_sram_addr(inst_sram_addr),
         .inst_sram_wdata(inst_sram_wdata),
         .inst_sram_rdata(inst_sram_rdata)
     );
 
-    reg [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus_r;
-    always @(posedge clk) begin
-        if (reset) begin
-            fs_to_ds_bus_r <= 0;
-        end else if (fs_to_ds_valid && ds_allowin) begin
-            fs_to_ds_bus_r <= fs_to_ds_bus;
-        end
-    end
-
     ID_stage u_ID_stage(
-        .clk            (clk            ),
-        .reset          (reset          ),
-        .ds_allowin     (ds_allowin     ),
-        .es_allowin     (es_allowin     ),
-        .fs_to_ds_valid (fs_to_ds_valid ),
-        .fs_to_ds_bus   (fs_to_ds_bus_r ),
-        .ds_to_es_valid (ds_to_es_valid ),
-        .ds_to_es_bus   (ds_to_es_bus   ),
-        .br_bus         (br_bus         ),
-        .ws_to_rf_bus   (ws_to_rf_bus_r )
+        .clk(clk),
+        .reset(reset),
+        .ds_allowin(ds_allowin),
+        .es_allowin(es_allowin),
+        .fs_to_ds_valid(fs_to_ds_valid),
+        .fs_to_ds_bus(fs_to_ds_bus),
+        .ds_to_es_valid(ds_to_es_valid),
+        .ds_to_es_bus(ds_to_es_bus),
+        .br_bus(br_bus),
+        .ws_to_rf_bus(ws_to_rf_bus)
     );
 
-    reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
-    always @(posedge clk) begin
-        if (reset) begin
-            ds_to_es_bus_r <= 0;
-        end else if (ds_to_es_valid && es_allowin) begin
-            ds_to_es_bus_r <= ds_to_es_bus;
-        end
-    end
 
     EXE_stage u_EXE_stage(
-        .clk            (clk            ),
-        .reset          (reset          ),
-        .es_allowin     (es_allowin     ),
-        .ds_to_es_bus   (ds_to_es_bus   ),
-        .fs_to_ds_valid (fs_to_ds_valid ),
-        .es_to_ws_bus   (es_to_ws_bus   ),
-        .br_bus         (br_bus         ),
-        .data_sram_en   (data_sram_en   ),
-        .data_sram_we   (data_sram_we   ),
-        .data_sram_addr (data_baddr     ),
-        .data_sram_wdata(data_sram_wdata),
-        .data_sram_rdata(data_sram_rdata)
+        .clk(clk),
+        .reset(reset),
+        .es_allowin(es_allowin),
+        .ds_to_es_bus(ds_to_es_bus),
+        .es_to_ms_valid(es_to_ms_valid),
+        .es_to_ms_bus(es_to_ms_bus)
     );
-
-
-    reg [`ES_TO_WS_BUS_WD-1:0] es_to_ws_bus_r;
-    always @(posedge clk) begin
-        if (reset) begin
-            es_to_ws_bus_r <= 0;
-        end else if (es_to_ws_valid && ws_allowin) begin
-            es_to_ws_bus_r <= es_to_ws_bus;
-        end
-    end
 
     MEM_stage u_MEM_stage(
-        .clk            (clk            ),
-        .reset          (reset          ),
-        .ms_allowin     (ms_allowin     ),
-        .es_to_ms_bus   (es_to_ws_bus_r ),
-        .es_to_ms_valid (es_to_ms_valid ),
-        .ws_allowin     (ws_allowin     ),
-        .ms_to_ws_bus   (ms_to_ws_bus   ),
-        .ms_to_ws_valid (ms_to_ws_valid ),
-        .data_sram_en   (data_sram_en   ),
-        .data_sram_we   (data_sram_we   ),
-        .data_sram_addr (data_baddr     ),
+        .clk(clk),
+        .reset(reset),
+        .ws_allowin(ws_allowin),
+        .ms_allowin(ms_allowin),
+        .es_to_ms_bus(es_to_ms_bus),
+        .es_to_ms_valid(es_to_ms_valid),
+        .ms_to_ws_bus(ms_to_ws_bus),
+        .ms_to_ws_valid(ms_to_ws_valid),
+        .data_sram_en(data_sram_en),
+        .data_sram_we(data_sram_we),
+        .data_sram_addr(data_sram_addr),
         .data_sram_wdata(data_sram_wdata),
         .data_sram_rdata(data_sram_rdata)
     );
 
-    reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
-    always @(posedge clk) begin
-        if (reset) begin
-            ms_to_ws_bus_r <= 0;
-        end else if (ms_to_ws_valid && ws_allowin) begin
-            ms_to_ws_bus_r <= ms_to_ws_bus;
-        end
-    end
-
     WB_stage u_WB_stage(
-        .clk            (clk            ),
-        .reset          (reset          ),
-        .rf_allowin     (rf_allowin     ),
-        .ws_allowin     (ws_allowin     ),
-        .ms_to_ws_valid (ms_to_ws_valid ),
-        .ms_to_ws_bus   (ms_to_ws_bus_r ),
-        .ws_to_rf_bus   (ws_to_rf_bus   )
+        .clk(clk),
+        .reset(reset),
+        .rf_allowin(rf_allowin),
+        .ws_allowin(ws_allowin),
+        .ms_to_ws_valid(ms_to_ws_valid),
+        .ms_to_ws_bus(ms_to_ws_bus),
+        .ws_to_rf_bus(ws_to_rf_bus)
     );
 
-    reg [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus_r;
-    always @(posedge clk) begin
-        if (reset) begin
-            ws_to_rf_bus_r <= 0;
-        end else if (ws_to_rf_valid && rf_allowin) begin
-            ws_to_rf_bus_r <= ws_to_rf_bus;
-        end
-    end
-
-
-    // TODO: 字寻址-->字节寻址
 
 
     // debug info generate
+    /*
     assign debug_wb_pc       = pc;
     assign debug_wb_rf_wen   = {4{rf_we}};
     assign debug_wb_rf_wnum  = dest;
     assign debug_wb_rf_wdata = final_result;
-
+    */
 endmodule

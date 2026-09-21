@@ -5,6 +5,7 @@ module EXE_stage(
     input wire reset,
     input wire ms_allowin,
     output wire es_allowin,
+    input wire ds_to_es_valid,
     input wire [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus,
     output wire es_to_ms_valid,
     output wire [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus
@@ -37,13 +38,11 @@ module EXE_stage(
         res_from_mem//1
     } = ds_to_es_bus;
 
-
-
-
     assign rj_eq_rd = (rj_value == rkd_value);
 
-    assign alu_src1 = src1_is_pc  ? pc[31:0] : rj_value;
-    assign alu_src2 = src2_is_imm ? imm : rkd_value;
+    wire [31:0] alu_src1 = src1_is_pc? ds_pc : rj_value;
+    wire [31:0] alu_src2 = src2_is_imm? imm : rkd_value;
+    wire [31:0] alu_result;
 
     alu u_alu(
         .alu_op     (alu_op    ),
@@ -52,7 +51,31 @@ module EXE_stage(
         .alu_result (alu_result)
     );
 
-    assign mem_result   = data_sram_rdata >> byte_off;   // 读回数据对齐到最低字节(扩展留给WB)
-    assign final_result = res_from_mem ? mem_result : alu_result;
+    wire to_es_to_ms_bus = {
+        alu_result, // 32
+        rkd_value, // 32
+        res_from_mem, // 1
+        mem_we, // 1
+        gr_we, // 1
+        dest, // 5
+        ds_pc // 32
+    };
+    reg [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus_r;
+
+    wire es_ready_go = 1;
+    assign es_to_ms_valid = ds_to_es_valid && es_ready_go;
+    assign es_allowin = !es_to_ms_valid || es_ready_go && ms_allowin;
+    wire should_updata = ds_to_es_valid && es_allowin;
+
+    always @(posedge clk) begin
+        if (reset) begin
+            es_to_ms_bus_r <= 0;
+        end else if (should_updata) begin
+            es_to_ms_bus_r <= to_es_to_ms_bus;
+        end
+    end
+
+    assign es_to_ms_bus = es_to_ms_bus_r;
+
 
 endmodule
