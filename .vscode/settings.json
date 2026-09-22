@@ -27,7 +27,10 @@
   // tools.v 里的 decoder_* 文件名与模块名不一致，所以额外把它列进来。
   // 副作用：编辑 tools.v 本身时会重复编译报 “has already been declared”，
   //         此时可临时删掉最后一个路径。
-  "verilog.linting.iverilog.arguments": "-y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
+  // -Wportbind：打开“悬空端口”警告（实例化时某个输入端口没接，
+  //   报 “Instantiating module ... with dangling input port ... floating”）。
+  //   想打开全部警告就把它换成 -Wall（会额外多出 implicit、timescale 等）。
+  "verilog.linting.iverilog.arguments": "-Wportbind -y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
 
   // ===================== 格式化：verible-verilog-format =====================
   // 选中代码后 Shift+Alt+F 即可；注意不支持“仅格式化选中范围”。

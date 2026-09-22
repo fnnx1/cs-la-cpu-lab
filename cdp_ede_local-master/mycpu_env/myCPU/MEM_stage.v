@@ -36,23 +36,25 @@ module MEM_stage(
         pc
     } =  es_to_ms_bus;
 
-    wire [31:0] mem_result = data_sram_rdata;
-    wire [31:0] final_result = res_from_mem ? mem_result : alu_result;
+    reg ms_valid;
 
-    assign data_sram_we = mem_we ? 4'b1111 : 4'b0000;
-    assign data_sram_en = mem_we | res_from_mem;
+    wire [31:0] mem_result = data_sram_rdata;
+
+    // 冒泡期总线保持的是上一条访存的字段，必须用 ms_valid 门控，
+    // 否则会重复发请求（store 到 confreg 会重复产生副作用）
+    assign data_sram_we = (ms_valid && mem_we) ? 4'b1111 : 4'b0000;
+    assign data_sram_en = ms_valid && (mem_we | res_from_mem);
     assign data_sram_addr = alu_result;
     assign data_sram_wdata = rkd_value;
 
     reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
     wire [`MS_TO_WS_BUS_WD-1:0] to_ms_to_ws_bus ={
-        final_result, // 32
+        alu_result, // 32
+        res_from_mem, // 1
         gr_we, // 1
         dest, // 5
         pc // 32
     };
-
-    reg ms_valid;
 
     wire ms_ready_go = 1;
     assign ms_allowin = !ms_valid || ms_ready_go && ws_allowin;
@@ -65,11 +67,16 @@ module MEM_stage(
         else if (ms_allowin) begin
             ms_valid <= es_to_ms_valid;
         end
-        else if (ms_ready_go && ws_allowin) begin
+        if (es_to_ms_valid && ms_allowin) begin
             ms_to_ws_bus_r <= to_ms_to_ws_bus;
         end
     end
 
-    assign ms_to_ws_bus = ms_to_ws_bus_r;
+    wire [31:0] alu_result_r = ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-1:`MS_TO_WS_BUS_WD-32];
+    wire res_from_mem_r = ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-33];
+    // 用内存的读寄存器直接yong zu
+    wire [31:0] final_result = res_from_mem_r ? mem_result : alu_result_r;
+
+    assign ms_to_ws_bus = {final_result, ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-33:0]};
 
 endmodule

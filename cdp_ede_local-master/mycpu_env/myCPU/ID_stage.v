@@ -233,10 +233,10 @@ module ID_stage(
 
     assign {ds_inst, ds_pc} = fs_to_ds_bus_r;
 
-    assign {rf_we, //37:37
-            rf_waddr, //36:32
-            rf_wdata //31:0
-            } = ws_to_rf_bus;
+    // WS_TO_RF_BUS_WD=70: {wdata[69:38], we[37], waddr[36:32], pc[31:0]}
+    assign rf_we    = ws_to_rf_bus[37];
+    assign rf_waddr = ws_to_rf_bus[36:32];
+    assign rf_wdata = ws_to_rf_bus[69:38];
 
     assign ds_to_es_bus = {
         alu_op,//12

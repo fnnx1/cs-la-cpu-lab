@@ -23,12 +23,8 @@ module mycpu_top(
 );
     reg reset = 1'b1;
     // 统一时钟上沿采样
-    always @(posedge clk) begin 
-        reset <= ~resetn;
-    end
-    reg valid = 1'b0;
     always @(posedge clk) begin
-        valid <= ~reset;
+        reset <= ~resetn;
     end
 
     wire [`BR_BUS_WD-1:0] br_bus;
@@ -53,6 +49,10 @@ module mycpu_top(
     wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus;
     wire rf_allowin;
     wire ws_to_rf_valid;
+
+    // 寄存器堆永远可以接收写回：WB 不会因此停住，
+    // 这是 load 数据能组合直通到 WS->RF 总线的前提
+    assign rf_allowin = 1'b1;
 
     IF_stage u_IF_stage(
         .clk(clk),
@@ -86,8 +86,10 @@ module mycpu_top(
         .clk(clk),
         .reset(reset),
         .es_allowin(es_allowin),
+        .ms_allowin(ms_allowin),
         .ds_to_es_bus(ds_to_es_bus),
         .es_to_ms_valid(es_to_ms_valid),
+        .ds_to_es_valid(ds_to_es_valid),
         .es_to_ms_bus(es_to_ms_bus)
     );
 
@@ -114,16 +116,16 @@ module mycpu_top(
         .ws_allowin(ws_allowin),
         .ms_to_ws_valid(ms_to_ws_valid),
         .ms_to_ws_bus(ms_to_ws_bus),
-        .ws_to_rf_bus(ws_to_rf_bus)
+        .ws_to_rf_bus(ws_to_rf_bus),
+        .ws_to_rf_valid(ws_to_rf_valid)
     );
 
 
 
     // debug info generate
-    /*
-    assign debug_wb_pc       = pc;
-    assign debug_wb_rf_wen   = {4{rf_we}};
-    assign debug_wb_rf_wnum  = dest;
-    assign debug_wb_rf_wdata = final_result;
-    */
+    // ws_to_rf_bus = {final_result[31:0], gr_we, dest[4:0], pc[31:0]} (70 位)
+    assign debug_wb_pc       = ws_to_rf_bus[31:0];
+    assign debug_wb_rf_we    = {4{ws_to_rf_bus[37] & ws_to_rf_valid}};
+    assign debug_wb_rf_wnum  = ws_to_rf_bus[36:32];
+    assign debug_wb_rf_wdata = ws_to_rf_bus[69:38];
 endmodule
