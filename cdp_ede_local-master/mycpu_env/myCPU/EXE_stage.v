@@ -38,8 +38,6 @@ module EXE_stage(
         res_from_mem//1
     } = ds_to_es_bus;
 
-    assign rj_eq_rd = (rj_value == rkd_value);
-
     wire [31:0] alu_src1 = src1_is_pc? ds_pc : rj_value;
     wire [31:0] alu_src2 = src2_is_imm? imm : rkd_value;
     wire [31:0] alu_result;

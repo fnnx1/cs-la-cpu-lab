@@ -15,7 +15,7 @@ reg [31:0] rf[31:0];
 
 //WRITE
 always @(posedge clk) begin
-    if (we) rf[waddr] <= wdata;
+    if (we && waddr != 5'b0) rf[waddr] <= wdata;
 end
 
 //READ OUT 1

@@ -27,14 +27,37 @@
   // tools.v 里的 decoder_* 文件名与模块名不一致，所以额外把它列进来。
   // 副作用：编辑 tools.v 本身时会重复编译报 “has already been declared”，
   //         此时可临时删掉最后一个路径。
-  // -Wportbind：打开“悬空端口”警告（实例化时某个输入端口没接，
-  //   报 “Instantiating module ... with dangling input port ... floating”）。
-  //   想打开全部警告就把它换成 -Wall（会额外多出 implicit、timescale 等）。
-  "verilog.linting.iverilog.arguments": "-Wportbind -y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
+  // -Wall：打开 iverilog 的全部警告。其中对本项目最关键的是
+  //   -Wimplicit —— 隐式声明 wire/reg：`assign xx = ...` 写到没声明的名字时
+  //   xx 会变成 1 位的隐式 wire（例如漏了位宽声明的拼接
+  //   `assign to_ds_to_es_bus = {...}`），本项目踩过这个坑，就靠它报出来。
+  //   另外还含 -Wportbind（实例化时输入端口悬空）、-Wtimescale、-Wtristate 等。
+  // 注意：iverilog 不做位宽检查，所以“声明了但位宽写错/漏写”这类
+  //   （如 `wire to_es_to_ms_bus = {...}` —— 声明成 1 位了）它报不出来，
+  //   那类要靠 verilator，配置见文件末尾（装好后可切换 linter）。
+  "verilog.linting.iverilog.arguments": "-Wall -y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
 
   // ===================== 格式化：verible-verilog-format =====================
   // 选中代码后 Shift+Alt+F 即可；注意不支持“仅格式化选中范围”。
   "verilog.formatting.verilogHDL.formatter": "verible-verilog-format",
   "verilog.formatting.systemVerilog.formatter": "verible-verilog-format",
-  "verilog.formatting.veribleVerilogFormatter.path": "/usr/bin/verible-verilog-format"
+  "verilog.formatting.veribleVerilogFormatter.path": "/usr/bin/verible-verilog-format",
+
+  // ============ 位宽等深度检查：Verilator（需先安装，装好后可切换）============
+  // iverilog 不做的检查，verilator 的 -Wall 会做：
+  //   WIDTH（位宽不匹配/截断）、UNDRIVEN、UNUSEDSIGNAL、PINMISSING（端口没接）、
+  //   UNOPTFLAT（组合环，例如 alu.v 里 or_result 回接 alu_result）、LATCH 等。
+  // 安装（需要你自己在终端执行，要 sudo）：
+  //   sudo pacman -S verilator
+  // 装好后把上面的 "verilog.linting.linter" 从 "iverilog" 改成 "verilator"
+  // （扩展一次只能跑一个 linter），用完可再切回 iverilog。
+  // 扩展会自动在前面补 --lint-only -I<当前文件所在目录>，这里只写额外参数：
+  //   -y <dir> +libext+.v  单文件 lint 时按“模块名 = 文件名”补找其他模块
+  //   -Wno-DECLFILENAME    tools.v 里文件名与模块名不一致，否则会刷屏
+  //   -Wno-fatal           警告不要变成 error（否则退出码非 0）
+  // 若某些警告太吵，可自行追加 -Wno-XXX（如 -Wno-UNUSED）。
+  "verilog.linting.verilator.arguments": "-Wall -Wno-DECLFILENAME -Wno-fatal -y cdp_ede_local-master/mycpu_env/myCPU +libext+.v",
+  "verilog.linting.verilator.includePath": [
+    "cdp_ede_local-master/mycpu_env/myCPU"
+  ]
 }
