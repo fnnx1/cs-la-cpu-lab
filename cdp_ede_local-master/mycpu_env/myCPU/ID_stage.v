@@ -229,9 +229,7 @@ module ID_stage(
 
     assign br_bus = {br_taken, br_target};
 
-    reg [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus_r;
-
-    assign {ds_inst, ds_pc} = fs_to_ds_bus_r;
+    assign {ds_inst, ds_pc} = fs_to_ds_bus;
 
     // WS_TO_RF_BUS_WD=70: {wdata[69:38], we[37], waddr[36:32], pc[31:0]}
     assign rf_we    = ws_to_rf_bus[37];
