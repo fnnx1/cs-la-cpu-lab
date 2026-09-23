@@ -3,10 +3,10 @@
 <!--                                                         -->
 <!-- Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.   -->
 
-<Project Version="7" Minor="39" Path="/home/asta/cs-la-cpu-lab/cdp_ede_local-master/mycpu_env/soc_verify/soc_bram/run_vivado/project/loongson.xpr">
+<Project Version="7" Minor="39" Path="/home/asta/_cs_la_cpu_lab/cdp_ede_local-master/mycpu_env/soc_verify/soc_bram/run_vivado/project/loongson.xpr">
   <DefaultLaunch Dir="$PRUNDIR"/>
   <Configuration>
-    <Option Name="Id" Val="e42c9c99c7814da3b819e20fa3fc792a"/>
+    <Option Name="Id" Val="c075ae6139e044acba2196adf20d6ca1"/>
     <Option Name="Part" Val="xc7a200tfbg676-1"/>
     <Option Name="CompiledLibDir" Val="$PCACHEDIR/compile_simlib"/>
     <Option Name="CompiledLibDirXSim" Val=""/>

@@ -11,7 +11,9 @@ module WB_stage(
     input wire [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus,
     output wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus,
     // data sram interface
-    input wire [31:0] data_sram_rdata
+    input wire [31:0] data_sram_rdata,
+    // block bus
+    input wire [`BLOCK_BUS_WD-1:0] block_bus
 );
 
     wire [31:0] alu_result;
@@ -55,5 +57,5 @@ module WB_stage(
             ms_to_ws_bus_r <= ms_to_ws_bus;
         end
     end
-
+    assign block_bus = ws_valid ? dest : 0;
 endmodule

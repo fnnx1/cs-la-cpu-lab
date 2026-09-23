@@ -13,7 +13,8 @@ module MEM_stage(
     output wire data_sram_en,
     output wire [3:0] data_sram_we,
     output wire [31:0] data_sram_addr,
-    output wire [31:0] data_sram_wdata
+    output wire [31:0] data_sram_wdata,
+    output wire [`BLOCK_BUS_WD-1:0] block_bus
 );
     // TODO:
     // 从ex级传入访存地址 -> 写数据接到写，读数据传到下一级
@@ -75,4 +76,5 @@ module MEM_stage(
     // 本级组合输出总线，由 WB 级寄存并完成 load 数据选择
     assign ms_to_ws_bus = to_ms_to_ws_bus;
 
+    assign block_bus = ms_valid ? dest : 0;
 endmodule

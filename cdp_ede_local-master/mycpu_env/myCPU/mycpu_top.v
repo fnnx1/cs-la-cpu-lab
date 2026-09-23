@@ -54,6 +54,8 @@ module mycpu_top(
     // 这是 load 数据能组合直通到 WS->RF 总线的前提
     assign rf_allowin = 1'b1;
 
+    wire [`BLOCK_BUS_WD-1:0] block_bus [0:2];
+
     IF_stage u_IF_stage(
         .clk(clk),
         .reset(reset),
@@ -78,7 +80,8 @@ module mycpu_top(
         .ds_to_es_valid(ds_to_es_valid),
         .ds_to_es_bus(ds_to_es_bus),
         .br_bus(br_bus),
-        .ws_to_rf_bus(ws_to_rf_bus)
+        .ws_to_rf_bus(ws_to_rf_bus),
+        .block_bus_sum({block_bus[2], block_bus[1], block_bus[0]})
     );
 
 
@@ -90,7 +93,8 @@ module mycpu_top(
         .ds_to_es_bus(ds_to_es_bus),
         .es_to_ms_valid(es_to_ms_valid),
         .ds_to_es_valid(ds_to_es_valid),
-        .es_to_ms_bus(es_to_ms_bus)
+        .es_to_ms_bus(es_to_ms_bus),
+        .block_bus(block_bus[0])
     );
 
     MEM_stage u_MEM_stage(
@@ -105,7 +109,8 @@ module mycpu_top(
         .data_sram_en(data_sram_en),
         .data_sram_we(data_sram_we),
         .data_sram_addr(data_sram_addr),
-        .data_sram_wdata(data_sram_wdata)
+        .data_sram_wdata(data_sram_wdata),
+        .block_bus(block_bus[1])
     );
 
     WB_stage u_WB_stage(
@@ -117,7 +122,8 @@ module mycpu_top(
         .ms_to_ws_bus(ms_to_ws_bus),
         .ws_to_rf_bus(ws_to_rf_bus),
         .ws_to_rf_valid(ws_to_rf_valid),
-        .data_sram_rdata(data_sram_rdata)
+        .data_sram_rdata(data_sram_rdata),
+        .block_bus(block_bus[2])
     );
 
 

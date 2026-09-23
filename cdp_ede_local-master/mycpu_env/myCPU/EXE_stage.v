@@ -8,7 +8,8 @@ module EXE_stage(
     input wire ds_to_es_valid,
     input wire [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus,
     output wire es_to_ms_valid,
-    output wire [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus
+    output wire [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus,
+    output wire [`BLOCK_BUS_WD-1:0] block_bus
 );
     wire [11:0] alu_op;
     wire        src1_is_pc;
@@ -79,5 +80,5 @@ module EXE_stage(
 
     assign es_to_ms_bus = to_es_to_ms_bus;
 
-
+    assign block_bus = es_valid ? dest : 0;
 endmodule
