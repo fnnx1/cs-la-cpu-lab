@@ -80,5 +80,5 @@ module EXE_stage(
 
     assign es_to_ms_bus = to_es_to_ms_bus;
 
-    assign block_bus = es_valid ? dest : 0;
+    assign block_bus = es_valid ? {gr_we, dest} : 6'b0;
 endmodule

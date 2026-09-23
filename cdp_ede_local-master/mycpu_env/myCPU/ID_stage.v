@@ -264,12 +264,17 @@ module ID_stage(
     end
 
     // 本级无阻塞请求
+
     wire [4:0] source0 = rf_raddr1;
     wire [4:0] source1 = rf_raddr2;
-    assign ds_ready_go = ((block_bus[0] != source0 && block_bus[1] != source0 && block_bus[2] != source0) ||
-                        (source0 == 5'b0)) &&
-                        ((block_bus[0] != source1 && block_bus[1] != source1 && block_bus[2] != source1) ||
-                        (source1 == 5'b0));
+    wire blk_src0 = (block_bus[0][5] && block_bus[0][4:0] == source0) ||
+                    (block_bus[1][5] && block_bus[1][4:0] == source0) ||
+                    (block_bus[2][5] && block_bus[2][4:0] == source0);
+    wire blk_src1 = (block_bus[0][5] && block_bus[0][4:0] == source1) ||
+                    (block_bus[1][5] && block_bus[1][4:0] == source1) ||
+                    (block_bus[2][5] && block_bus[2][4:0] == source1);
+    assign ds_ready_go = (!blk_src0 || source0 == 5'b0) &&
+                         (!blk_src1 || source1 == 5'b0);
     // 未阻塞
     //
     // 实际上阻塞会堵住取指到本级的全部过程，因为valid、bus、pc寄存器更新都要求allowin，

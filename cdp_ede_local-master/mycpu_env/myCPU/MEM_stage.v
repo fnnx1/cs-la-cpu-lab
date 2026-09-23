@@ -76,5 +76,5 @@ module MEM_stage(
     // 本级组合输出总线，由 WB 级寄存并完成 load 数据选择
     assign ms_to_ws_bus = to_ms_to_ws_bus;
 
-    assign block_bus = ms_valid ? dest : 0;
+    assign block_bus = ms_valid ? {gr_we, dest} : 6'b0;
 endmodule

@@ -57,5 +57,5 @@ module WB_stage(
             ms_to_ws_bus_r <= ms_to_ws_bus;
         end
     end
-    assign block_bus = ws_valid ? dest : 0;
+    assign block_bus = ws_valid ? {gr_we, dest} : 6'b0;
 endmodule
