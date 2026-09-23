@@ -18,9 +18,6 @@ module WB_stage(
     wire [4:0]  dest;
     wire [31:0] pc;
 
-    // 写回寄存器
-    // MS_TO_WS_BUS_WD=71，res_from_mem 也要解出来，
-    // 少解一位会让整个拼接被截成低 70 位（final_result 整体错位）
     assign {
         final_result, // 32，load 的结果来自数据 RAM 的输出寄存器
         res_from_mem, // 1，本模块不用，仅为对齐位域
@@ -35,8 +32,6 @@ module WB_stage(
     assign ws_allowin = !ws_valid || ws_ready_go && rf_allowin;
     assign ws_to_rf_valid = ws_valid && ws_ready_go;
 
-    // WS->RF 组合直通：load 数据只在 WB 这一拍有效，再打一拍会与 pc/dest 错位；
-    // 写使能与 ws_valid 相与：总线保持旧字段时不能拿当拍的 rdata 去写寄存器
     assign ws_to_rf_bus = {
         final_result,// 32
         gr_we && ws_valid, // 1

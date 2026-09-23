@@ -238,7 +238,8 @@ module ID_stage(
     assign rf_waddr = ws_to_rf_bus[36:32];
     assign rf_wdata = ws_to_rf_bus[69:38];
 
-    assign ds_to_es_bus = {
+    reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
+    wire [`DS_TO_ES_BUS_WD-1:0] to_ds_to_es_bus = {
         alu_op,//12
         src1_is_pc,//1
         src2_is_imm,//1
@@ -263,9 +264,11 @@ module ID_stage(
         end else if (ds_allowin) begin
             ds_valid <= fs_to_ds_valid;
         end
-        if (fs_to_ds_valid && ds_allowin) begin
-            fs_to_ds_bus_r <= fs_to_ds_bus;
+        if (ds_to_es_valid && es_allowin) begin
+            ds_to_es_bus_r <= to_ds_to_es_bus;
         end
     end
+
+    assign ds_to_es_bus = ds_to_es_bus_r;
 
 endmodule

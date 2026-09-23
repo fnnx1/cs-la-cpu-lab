@@ -34,6 +34,7 @@ module IF_stage(
 
     //if向id传递的bus
     assign fs_to_ds_bus = {fs_inst, fs_pc};
+    reg fs_to_ds_bus_r;
 
     // pre-if stage
     // pc 更新逻辑
@@ -61,6 +62,9 @@ module IF_stage(
             fs_valid <= 1'b0;
         end else if (fs_allowin) begin
             fs_valid <= to_fs_valid; // 同时更新数据可用状态和数据
+        end
+        if (fs_to_ds_valid && ds_allowin) begin
+            fs_to_ds_bus_r <= fs_to_ds_bus;
         end
     end
 

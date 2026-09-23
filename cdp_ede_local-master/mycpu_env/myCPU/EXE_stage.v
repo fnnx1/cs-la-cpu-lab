@@ -67,7 +67,6 @@ module EXE_stage(
 
     assign es_to_ms_valid = es_valid && es_ready_go; // 传给下一级的数据是有效的
     assign es_allowin = !es_valid || es_ready_go && ms_allowin;
-    wire should_updata = ds_to_es_valid && es_allowin;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -75,7 +74,7 @@ module EXE_stage(
         end else if (es_allowin) begin
             es_valid <= ds_to_es_valid;
         end
-        if (should_updata) begin
+        if (es_to_ms_valid && ms_allowin) begin
             es_to_ms_bus_r <= to_es_to_ms_bus;
         end
     end
