@@ -57,5 +57,8 @@ module WB_stage(
             ms_to_ws_bus_r <= ms_to_ws_bus;
         end
     end
-    assign block_bus = ws_valid ? {gr_we, dest} : 6'b0;
+
+    wire [31:0] data_to_rf = final_result;
+    wire data_valid = 1'b1;
+    assign block_bus = {gr_we, dest, data_valid, data_to_rf};
 endmodule

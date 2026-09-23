@@ -18,8 +18,6 @@ module ID_stage(
     input wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus,
     input wire [`BLOCK_BUS_WD*3-1:0] block_bus_sum
 );
-    wire [`BLOCK_BUS_WD-1:0] block_bus[0:2];
-    assign {block_bus[2], block_bus[1], block_bus[0]} = block_bus_sum;
 
     wire br_taken;
     wire [31:0] br_target;
@@ -220,8 +218,52 @@ module ID_stage(
         .wdata(rf_wdata)
     );
 
-    assign rj_value = rf_rdata1;
-    assign rkd_value = rf_rdata2;
+    // 前递与阻塞
+    wire [`BLOCK_BUS_WD-1:0] block_bus[0:2];
+    assign {block_bus[2], block_bus[1], block_bus[0]} = block_bus_sum;
+    //
+    wire [4:0] source0 = rf_raddr1;
+    wire [4:0] source1 = rf_raddr2;
+    //
+    wire        blk_we      [0:2];
+    wire [4:0]  dest_blk    [0:2];
+    wire        data_valid  [0:2];
+    wire [31:0] data_to_rf  [0:2];
+    //
+    assign {blk_we[0], dest_blk[0], data_valid[0], data_to_rf[0]} = block_bus[0];
+    assign {blk_we[1], dest_blk[1], data_valid[1], data_to_rf[1]} = block_bus[1];
+    assign {blk_we[2], dest_blk[2], data_valid[2], data_to_rf[2]} = block_bus[2];
+    // exe/mem/wb
+    wire hit0[0:2];
+    wire hit1[0:2];
+    wire hit[0:2];
+    //
+    wire should_blk[0:2];
+    //
+    genvar i;
+    generate
+        for (i = 0; i < 3; i = i + 1) begin: gen_blk
+            assign hit0[i] = (source0 != 5'b0) && blk_we[i] && (dest_blk[i] == source0);
+            assign hit1[i] = (source1 != 5'b0) && blk_we[i] && (dest_blk[i] == source1);
+            assign hit[i] = hit0[i] | hit1[i];
+            assign should_blk[i] = hit[i] && !data_valid[i];
+        end
+    endgenerate
+    //
+    wire should_blk0 = blk_we[0] && !data_valid[0] && (dest_blk[0] != 5'b0) &&
+        (dest_blk[0] == source0 || dest_blk[0] == source1);
+    wire should_blk1 = blk_we[1] && !data_valid[1] && (dest_blk[1] != 5'b0) &&
+        (dest_blk[1] == source0 || dest_blk[1] == source1);
+    wire should_blk2 = blk_we[2] && !data_valid[2] && (dest_blk[2] != 5'b0) &&
+        (dest_blk[2] == source0 || dest_blk[2] == source1);
+
+
+    assign rj_value = (hit0[0] && data_valid[0]) ? data_to_rf[0] :
+        (hit0[1] && data_valid[1]) ? data_to_rf[1] :
+        (hit0[2] && data_valid[2]) ? data_to_rf[2] : rf_rdata1;
+    assign rkd_value = (hit1[0] && data_valid[0]) ? data_to_rf[0] :
+        (hit1[1] && data_valid[1]) ? data_to_rf[1] :
+        (hit1[2] && data_valid[2]) ? data_to_rf[2] : rf_rdata2;
 
     assign rj_eq_rd = (rj_value == rkd_value);
     assign br_taken = (inst_beq && rj_eq_rd
@@ -235,7 +277,7 @@ module ID_stage(
 
     assign br_bus = {br_taken, br_target};
 
-
+    // 写回相关
     // WS_TO_RF_BUS_WD=70: {wdata[69:38], we[37], waddr[36:32], pc[31:0]}
     assign rf_we    = ws_to_rf_bus[37];
     assign rf_waddr = ws_to_rf_bus[36:32];
@@ -264,19 +306,10 @@ module ID_stage(
     end
 
     // 本级无阻塞请求
-
-    wire [4:0] source0 = rf_raddr1;
-    wire [4:0] source1 = rf_raddr2;
-    wire blk_src0 = (block_bus[0][5] && block_bus[0][4:0] == source0) ||
-                    (block_bus[1][5] && block_bus[1][4:0] == source0) ||
-                    (block_bus[2][5] && block_bus[2][4:0] == source0);
-    wire blk_src1 = (block_bus[0][5] && block_bus[0][4:0] == source1) ||
-                    (block_bus[1][5] && block_bus[1][4:0] == source1) ||
-                    (block_bus[2][5] && block_bus[2][4:0] == source1);
-    assign ds_ready_go = (!blk_src0 || source0 == 5'b0) &&
-                         (!blk_src1 || source1 == 5'b0);
+    assign ds_ready_go = !should_blk[0] && !should_blk[1] && !should_blk[2];
     // 未阻塞
     //
+    // 个人理解：
     // 实际上阻塞会堵住取指到本级的全部过程，因为valid、bus、pc寄存器更新都要求allowin，
     // 而allowin会通过组合逻辑往前传递。
     // 本级上周期已经处理好、写进了 本级to下级 寄存器（bus和valid）的数据不受影响。

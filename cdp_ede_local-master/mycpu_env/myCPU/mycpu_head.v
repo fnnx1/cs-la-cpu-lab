@@ -8,6 +8,6 @@
 `define MS_TO_WS_BUS_WD 71
 `define WS_TO_RF_BUS_WD 70
 
-`define BLOCK_BUS_WD 6 // {gr_we, dest}
+`define BLOCK_BUS_WD 39 // {gr_we, dest, data_valid, data_to_rf}
 
 `endif

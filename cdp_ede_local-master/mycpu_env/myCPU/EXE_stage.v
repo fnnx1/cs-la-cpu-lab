@@ -80,5 +80,7 @@ module EXE_stage(
 
     assign es_to_ms_bus = to_es_to_ms_bus;
 
-    assign block_bus = es_valid ? {gr_we, dest} : 6'b0;
+    wire [31:0] data_to_rf = res_from_mem ? rkd_value : alu_result;
+    wire data_valid = !(mem_we || res_from_mem); // 需要写回寄存器堆，并且数据不来自访存阶段
+    assign block_bus = es_valid ? {gr_we, dest, data_valid, data_to_rf} : `BLOCK_BUS_WD'b0;
 endmodule
