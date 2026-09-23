@@ -254,16 +254,27 @@ module ID_stage(
     };
 
     //////////////////////////////////////////////////
-    assign ds_ready_go = 1'b1;
-    assign ds_allowin = !ds_valid || ds_ready_go && es_allowin;
-    assign ds_to_es_valid = ds_valid && ds_ready_go;
+
+    reg [2:0] clk1 = 3'b000;
+    always @(posedge clk) begin
+        clk1 <= clk1 + 1'b1;
+    end
+
+    assign ds_ready_go = 1'b1 && clk1 == 0; // 本级无阻塞请求
+    // 未阻塞
+    //
+    // 实际上阻塞会堵住取指到本级的全部过程，因为valid、bus、pc寄存器更新都要求allowin，
+    // 而allowin会通过组合逻辑往前传递。
+    // 本级上周期已经处理好、写进了 本级to下级 寄存器（bus和valid）的数据不受影响。
+    assign ds_allowin = !ds_valid/*本级源数据本就无效*/ || ds_ready_go && es_allowin/*本级可以走并且后级允许进入*/;
+    assign ds_to_es_valid = ds_valid && ds_ready_go; //本级源数据有效并且本级无阻塞请求，本级输出的总线数据能用
     always @(posedge clk) begin
         if (reset) begin
             ds_valid <= 1'b0;
         end else if (ds_allowin) begin
-            ds_valid <= fs_to_ds_valid;
+            ds_valid <= fs_to_ds_valid;// 下一级也有一样的逻辑，如果本级阻塞，下一级如果没阻塞valid会拿到气泡
         end
-        if (fs_to_ds_valid && ds_allowin) begin
+        if (fs_to_ds_valid && ds_allowin) begin// 下一级也有一样的判断，如果本级阻塞，下一级即使没阻塞也不会更新bus
             fs_to_ds_bus_r <= fs_to_ds_bus;
         end
     end

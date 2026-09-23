@@ -42,15 +42,10 @@ module IF_stage(
 
     always @(posedge clk) begin
         if (reset) begin
-            fs_pc <= 32'h1c00_0000;
-        end else if (fs_valid && fs_allowin) begin
+            fs_pc <= 32'h1bfffffc;
+        end else if (to_fs_valid && fs_allowin) begin
             fs_pc <= next_pc;
         end
-    end
-
-    reg [2:0] clk1 = 3'b000;
-    always @(posedge clk) begin
-        clk1 <= clk1 + 1'b1;
     end
 
     //IF stage
