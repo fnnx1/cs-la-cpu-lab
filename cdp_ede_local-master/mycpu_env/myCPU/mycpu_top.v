@@ -105,8 +105,7 @@ module mycpu_top(
         .data_sram_en(data_sram_en),
         .data_sram_we(data_sram_we),
         .data_sram_addr(data_sram_addr),
-        .data_sram_wdata(data_sram_wdata),
-        .data_sram_rdata(data_sram_rdata)
+        .data_sram_wdata(data_sram_wdata)
     );
 
     WB_stage u_WB_stage(
@@ -117,7 +116,8 @@ module mycpu_top(
         .ms_to_ws_valid(ms_to_ws_valid),
         .ms_to_ws_bus(ms_to_ws_bus),
         .ws_to_rf_bus(ws_to_rf_bus),
-        .ws_to_rf_valid(ws_to_rf_valid)
+        .ws_to_rf_valid(ws_to_rf_valid),
+        .data_sram_rdata(data_sram_rdata)
     );
 
 

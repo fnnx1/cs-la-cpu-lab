@@ -9,22 +9,28 @@ module WB_stage(
     input wire ms_to_ws_valid,
     output wire ws_to_rf_valid,
     input wire [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus,
-    output wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus
+    output wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus,
+    // data sram interface
+    input wire [31:0] data_sram_rdata
 );
 
-    wire [31:0] final_result;
+    wire [31:0] alu_result;
     wire        res_from_mem;
     wire        gr_we;
     wire [4:0]  dest;
     wire [31:0] pc;
 
+    reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
+
     assign {
-        final_result, // 32，load 的结果来自数据 RAM 的输出寄存器
-        res_from_mem, // 1，本模块不用，仅为对齐位域
+        alu_result, // 32，MEM 级 alu 结果
+        res_from_mem, // 1，是否需要从数据 RAM 取数
         gr_we, // 1
         dest, // 5
         pc // 32
-    } = ms_to_ws_bus;
+    } = ms_to_ws_bus_r;
+
+    wire [31:0] final_result = res_from_mem ? data_sram_rdata : alu_result;
 
 
     wire ws_ready_go = 1;
@@ -42,9 +48,11 @@ module WB_stage(
     always @(posedge clk) begin
         if (reset) begin
             ws_valid <= 1'b0;
-        end
-        else if (ws_allowin) begin
+        end else if (ws_allowin) begin
             ws_valid <= ms_to_ws_valid;
+        end
+        if (ms_to_ws_valid && ws_allowin) begin
+            ms_to_ws_bus_r <= ms_to_ws_bus;
         end
     end
 

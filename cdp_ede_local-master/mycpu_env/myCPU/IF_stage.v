@@ -32,12 +32,7 @@ module IF_stage(
     wire [31:0] fs_inst; //fs阶段的inst和pc,往后传递
     reg [31:0] fs_pc; // 定义为已经取好指的最后pc值
 
-    //if向id传递的bus
-    reg [`FS_TO_DS_BUS_WD-1:0]fs_to_ds_bus_r;
-    wire [`FS_TO_DS_BUS_WD-1:0] to_fs_to_ds_bus = {
-        fs_inst, // 32
-        fs_pc // 32
-    };
+
 
     // pre-if stage
     // pc 更新逻辑
@@ -47,10 +42,15 @@ module IF_stage(
 
     always @(posedge clk) begin
         if (reset) begin
-            fs_pc <= 32'h1bfffffc;
-        end else if (to_fs_valid && fs_allowin) begin
+            fs_pc <= 32'h1c00_0000;
+        end else if (fs_valid && fs_allowin) begin
             fs_pc <= next_pc;
         end
+    end
+
+    reg [2:0] clk1 = 3'b000;
+    always @(posedge clk) begin
+        clk1 <= clk1 + 1'b1;
     end
 
     //IF stage
@@ -67,12 +67,12 @@ module IF_stage(
         end else if (fs_allowin) begin
             fs_valid <= to_fs_valid;
         end
-        if (fs_to_ds_valid && ds_allowin) begin
-            fs_to_ds_bus_r <= to_fs_to_ds_bus;
-        end
     end
 
-    assign fs_to_ds_bus = fs_to_ds_bus_r;
+    assign fs_to_ds_bus = {
+        fs_inst, // 32
+        fs_pc // 32
+    };
 
     assign inst_sram_en = to_fs_valid && fs_allowin;
     assign inst_sram_we = 4'h0; //读

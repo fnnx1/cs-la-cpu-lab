@@ -13,8 +13,7 @@ module MEM_stage(
     output wire data_sram_en,
     output wire [3:0] data_sram_we,
     output wire [31:0] data_sram_addr,
-    output wire [31:0] data_sram_wdata,
-    input wire [31:0] data_sram_rdata
+    output wire [31:0] data_sram_wdata
 );
     // TODO:
     // 从ex级传入访存地址 -> 写数据接到写，读数据传到下一级
@@ -26,6 +25,10 @@ module MEM_stage(
     wire gr_we;
     wire [4:0] dest;
 
+    // 本级保存：本级前的总线数据（EXE→MEM）
+    reg [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus_r;
+
+
     assign {
         alu_result,
         rkd_value,
@@ -34,15 +37,11 @@ module MEM_stage(
         gr_we,
         dest,
         pc
-    } =  es_to_ms_bus;
+    } =  es_to_ms_bus_r;
 
     reg ms_valid;
 
-    wire [31:0] mem_result = data_sram_rdata;
 
-
-
-    reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
     wire [`MS_TO_WS_BUS_WD-1:0] to_ms_to_ws_bus ={
         alu_result, // 32
         res_from_mem, // 1
@@ -68,16 +67,12 @@ module MEM_stage(
         end else if (ms_allowin) begin
             ms_valid <= es_to_ms_valid;
         end
-        if (ms_to_ws_valid && ws_allowin) begin
-            ms_to_ws_bus_r <= to_ms_to_ws_bus;
+        if (es_to_ms_valid && ms_allowin) begin
+            es_to_ms_bus_r <= es_to_ms_bus;
         end
     end
 
-    wire [31:0] alu_result_r = ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-1:`MS_TO_WS_BUS_WD-32];
-    wire res_from_mem_r = ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-33];
-    // 用内存的读寄存器直接yong zu
-    wire [31:0] final_result = res_from_mem_r ? mem_result : alu_result_r;
-
-    assign ms_to_ws_bus = {final_result, ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-33:0]};
+    // 本级组合输出总线，由 WB 级寄存并完成 load 数据选择
+    assign ms_to_ws_bus = to_ms_to_ws_bus;
 
 endmodule
