@@ -18,7 +18,7 @@ module ID_stage(
     input wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus,
     input wire [`BLOCK_BUS_WD*3-1:0] block_bus_sum
 );
-    wire [4:0] block_bus[2:0];
+    wire [`BLOCK_BUS_WD-1:0] block_bus[0:2];
     assign {block_bus[2], block_bus[1], block_bus[0]} = block_bus_sum;
 
     wire br_taken;
@@ -264,9 +264,12 @@ module ID_stage(
     end
 
     // 本级无阻塞请求
-    wire [4:0] dest_1 = ds_valid ? dest:0;
-    assign ds_ready_go = (block_bus[0] != dest && block_bus[1] != dest && block_bus[2] != dest) ||
-                        (dest == 5'b0);
+    wire [4:0] source0 = rf_raddr1;
+    wire [4:0] source1 = rf_raddr2;
+    assign ds_ready_go = ((block_bus[0] != source0 && block_bus[1] != source0 && block_bus[2] != source0) ||
+                        (source0 == 5'b0)) &&
+                        ((block_bus[0] != source1 && block_bus[1] != source1 && block_bus[2] != source1) ||
+                        (source1 == 5'b0));
     // 未阻塞
     //
     // 实际上阻塞会堵住取指到本级的全部过程，因为valid、bus、pc寄存器更新都要求allowin，

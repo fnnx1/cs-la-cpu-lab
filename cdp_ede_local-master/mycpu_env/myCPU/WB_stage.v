@@ -13,7 +13,7 @@ module WB_stage(
     // data sram interface
     input wire [31:0] data_sram_rdata,
     // block bus
-    input wire [`BLOCK_BUS_WD-1:0] block_bus
+    output wire [`BLOCK_BUS_WD-1:0] block_bus
 );
 
     wire [31:0] alu_result;
