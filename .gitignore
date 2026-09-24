@@ -62,3 +62,4 @@ obj
 #   for_test_obj/exN_obj/data_ram.{mif,coe}
 #   for_test_obj/exN_obj/rom.vlog
 #   for_test_obj/exN_obj/test.s
+cdp_ede_local-master/mycpu_env/soc_verify/soc_bram/rtl
