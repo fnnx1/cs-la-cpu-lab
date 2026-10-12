@@ -89,8 +89,41 @@ module ID_stage(
     wire inst_bne;
     wire inst_lu12i_w;
 
+    /// 添加
+    // 运算、逻辑,9
+    wire inst_slti;
+    wire inst_sltui;
+    wire inst_andi;
+    wire inst_ori;
+    wire inst_xori;
+    wire inst_sll_w;
+    wire inst_srl_w;
+    wire inst_sra_w;
+    wire inst_pcaddu12i;
+    // 转移,4
+    wire inst_blt;
+    wire inst_bge;
+    wire inst_bltu;
+    wire inst_bgeu;
+    // 访存,6
+    wire inst_st_b;
+    wire inst_st_h;
+    wire inst_ld_b;
+    wire inst_ld_h;
+    wire inst_ld_bu;
+    wire inst_ld_hu;
+    // 乘除,7
+    wire inst_mul_w;
+    wire inst_mulh_w;
+    wire inst_mulh_wu;
+    wire inst_div_w;
+    wire inst_mod_w;
+    wire inst_div_wu;
+    wire inst_mod_wu;
+
     wire need_ui5;
     wire need_si12;
+    wire need_ui12; // 无符号扩展12bits
     wire need_si16;
     wire need_si20;
     wire need_si26;
@@ -153,30 +186,73 @@ module ID_stage(
     assign inst_bne = op_31_26_d[6'h17];
     assign inst_lu12i_w = op_31_26_d[6'h05] & ~ds_inst[25];
 
+    /// 添加
+    // rj <(signed) si12 ? => rd*
+    assign inst_slti = op_31_26_d[6'h00] & op_25_22_d[4'b1000];
+    // rj <(unsigned) si12 ? => rd*
+    assign inst_sltui = op_31_26_d[6'h00] & op_25_22_d[4'b1001];
+    // rj & ui12 => rd*
+    assign inst_andi = op_31_26_d[6'h00] & op_25_22_d[4'b1101];
+    // rj | ui12 => rd*
+    assign inst_ori = op_31_26_d[6'h00] & op_25_22_d[4'b1110];
+    // rj ^ ui12 => rd*
+    assign inst_xori = op_31_26_d[6'h00] & op_25_22_d[4'b1111];
+    // rj << rk[4:0] => rd*
+    assign inst_sll_w = op_31_26_d[6'h00] & op_25_22_d[4'b0000] & op_21_20_d[2'b01] & op_19_15_d[5'b01110];
+    // rj >> rk[4:0] => rd*
+    assign inst_srl_w = op_31_26_d[6'h00] & op_25_22_d[4'b0000] & op_21_20_d[2'b01] & op_19_15_d[5'b01111];
+    // rj >>> rk[4:0] => rd*
+    assign inst_sra_w = op_31_26_d[6'h00] & op_25_22_d[4'b0000] & op_21_20_d[2'b01] & op_19_15_d[5'b10000];
+    // pc + {si20, 12'b0} => rd*
+    assign inst_pcaddu12i = op_31_26_d[6'b000111] & ~ds_inst[25];
+    //
+    assign inst_blt = op_31_26_d[6'b011000];
+    assign inst_bge = op_31_26_d[6'b011001];
+    assign inst_bltu = op_31_26_d[6'b011010];
+    assign inst_bgeu = op_31_26_d[6'b011011];
+
     /////////////////////////////////
-    assign alu_op[0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl;
+    /* 摘自 alu.v，参考用
+    wire op_add;   //add operation
+    wire op_sub;   //sub operation
+    wire op_slt;   //signed compared and set less than
+    wire op_sltu;  //unsigned compared and set less than
+    wire op_and;   //bitwise and
+    wire op_nor;   //bitwise nor
+    wire op_or;    //bitwise or
+    wire op_xor;   //bitwise xor
+    wire op_sll;   //logic left shift
+    wire op_srl;   //logic right shift
+    wire op_sra;   //arithmetic right shift
+    wire op_lui;   //Load Upper Immediate
+    */
+    assign alu_op[0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl | inst_pcaddu12i;
     assign alu_op[1] = inst_sub_w;
-    assign alu_op[2] = inst_slt;
-    assign alu_op[3] = inst_sltu;
-    assign alu_op[4] = inst_and;
+    assign alu_op[2] = inst_slt | inst_slti;
+    assign alu_op[3] = inst_sltu | inst_sltui;
+    assign alu_op[4] = inst_and | inst_andi;
     assign alu_op[5] = inst_nor;
-    assign alu_op[6] = inst_or;
-    assign alu_op[7] = inst_xor;
-    assign alu_op[8] = inst_slli_w;
-    assign alu_op[9] = inst_srli_w;
-    assign alu_op[10] = inst_srai_w;
+    assign alu_op[6] = inst_or | inst_ori;
+    assign alu_op[7] = inst_xor | inst_xori;
+    assign alu_op[8] = inst_slli_w | inst_sll_w;
+    assign alu_op[9] = inst_srli_w | inst_srl_w;
+    assign alu_op[10] = inst_srai_w | inst_sra_w;
     assign alu_op[11] = inst_lu12i_w;
+
     //信号
     assign need_ui5 = inst_slli_w | inst_srli_w | inst_srai_w;
-    assign need_si12 = inst_addi_w | inst_ld_w | inst_st_w;
+    assign need_si12 = inst_addi_w | inst_ld_w | inst_st_w
+                        | inst_slti | inst_sltui;
+    assign need_ui12 = inst_andi | inst_ori | inst_xori;
     assign need_si16 = inst_jirl | inst_beq | inst_bne;
-    assign need_si20 = inst_lu12i_w;
+    assign need_si20 = inst_lu12i_w | inst_pcaddu12i;
     assign need_si26 = inst_b | inst_bl;
     assign src2_is_4 = inst_jirl | inst_bl;
 
     assign imm = src2_is_4 ? 32'h4 :
                  need_si20 ? {i20[19:0], 12'b0} :
                  need_ui5 ? rk :
+                 need_ui12 ? {20'b0,i12[11:0]} : // 无符号扩展12bits
                  {{20{i12[11]}}, i12[11:0]};
 
     assign br_offs = need_si26 ? {{4{i26[25]}}, i26[25:0], 2'b0} :
@@ -186,7 +262,7 @@ module ID_stage(
 
     assign src_reg_is_rd = inst_beq | inst_bne | inst_st_w;
 
-    assign src1_is_pc = inst_jirl | inst_bl;
+    assign src1_is_pc = inst_jirl | inst_bl | inst_pcaddu12i;
 
     assign src2_is_imm = inst_slli_w |
                         inst_srli_w |
@@ -196,7 +272,13 @@ module ID_stage(
                         inst_st_w |
                         inst_lu12i_w |
                         inst_jirl |
-                        inst_bl;
+                        inst_bl |
+                        inst_slti |
+                        inst_sltui |
+                        inst_andi |
+                        inst_ori |
+                        inst_xori |
+                        inst_pcaddu12i;
 
     assign res_from_mem = inst_ld_w;
     assign dst_is_r1 = inst_bl;
