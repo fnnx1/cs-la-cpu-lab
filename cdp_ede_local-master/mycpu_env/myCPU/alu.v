@@ -1,10 +1,12 @@
 `include "mycpu_head.v"
 
 module alu(
+  input  wire clk,
   input  wire [18:0] alu_op,
   input  wire [31:0] alu_src1,
   input  wire [31:0] alu_src2,
-  output wire [31:0] alu_result
+  output wire [31:0] alu_result,
+  output wire        alu_ready_go
 );
 
 wire op_add;   //add operation
@@ -64,6 +66,7 @@ wire [31:0] sll_result;
 wire [63:0] sr64_result;
 wire [31:0] sr_result;
 
+wire div_mod_finished;
 
 // 32-bit adder
 wire [31:0] adder_a;
@@ -104,17 +107,95 @@ assign sr64_result = {{32{op_sra & alu_src1[31]}}, alu_src1[31:0]} >> alu_src2[4
 
 assign sr_result   = sr64_result[31:0];
 
-// MUL, DIV, MOD result
-wire [63:0] mul_result = $signed(alu_src1) * $signed(alu_src2);
+reg mul_finished;
 
-wire [63:0] mulu_result = alu_src1 * alu_src2;
+// MUL, DIV, MOD result
+reg [63:0] mul_result;
+reg [63:0] mulu_result;
+
 wire [31:0] mul_w_result = mul_result[31:0];
 wire [31:0] mulh_w_result = mul_result[63:32];
 wire [31:0] mulh_wu_result = mulu_result[63:32];
-wire [31:0] div_w_result = $signed(alu_src1) / $signed(alu_src2);
-wire [31:0] mod_w_result = $signed(alu_src1) % $signed(alu_src2);
-wire [31:0] div_wu_result = alu_src1 / alu_src2;
-wire [31:0] mod_wu_result = alu_src1 % alu_src2;
+
+wire [63:0] signed_div_result;
+wire [63:0] unsigned_div_result;
+
+wire signed_finished;
+wire unsigned_finished;
+wire signed_divisor_ready;
+wire signed_dividend_ready;
+wire unsigned_divisor_ready;
+wire unsigned_dividend_ready;
+
+reg signed_div_valid;
+reg unsigned_div_valid;
+reg signed_successfully_inputed;
+reg unsigned_successfully_inputed;
+
+div_gen_0 signed_div(
+  .aclk(clk),
+  .s_axis_divisor_tvalid(signed_div_valid),
+  .s_axis_divisor_tready(signed_divisor_ready),
+  .s_axis_divisor_tdata(alu_src2),
+  .s_axis_dividend_tvalid(signed_div_valid),
+  .s_axis_dividend_tready(signed_dividend_ready),
+  .s_axis_dividend_tdata(alu_src1),
+  .m_axis_dout_tvalid(signed_finished),
+  .m_axis_dout_tdata(signed_div_result)
+);
+
+div_gen_1 unsigned_div(
+  .aclk(clk),
+  .s_axis_divisor_tvalid(unsigned_div_valid),
+  .s_axis_divisor_tready(unsigned_divisor_ready),
+  .s_axis_divisor_tdata(alu_src2),
+  .s_axis_dividend_tvalid(unsigned_div_valid),
+  .s_axis_dividend_tready(unsigned_dividend_ready),
+  .s_axis_dividend_tdata(alu_src1),
+  .m_axis_dout_tvalid(unsigned_finished),
+  .m_axis_dout_tdata(unsigned_div_result)
+);
+
+wire unsigned_ready = unsigned_divisor_ready & unsigned_dividend_ready;
+wire signed_ready = signed_divisor_ready & signed_dividend_ready;
+
+always@(posedge clk) begin
+  if((op_div_w | op_mod_w) && !signed_successfully_inputed) begin
+    signed_div_valid <= 1'b1;
+    signed_successfully_inputed <= 1'b1;
+  end else if (signed_ready) begin
+    signed_div_valid <= 1'b0;
+  end else if ((!op_div_w && !op_mod_w) || signed_finished) begin
+    signed_successfully_inputed <= 1'b0;
+  end
+
+  if((op_div_wu | op_mod_wu) && !unsigned_successfully_inputed) begin
+    unsigned_div_valid <= 1'b1;
+    unsigned_successfully_inputed <= 1'b1;
+  end else if (unsigned_ready) begin
+    unsigned_div_valid <= 1'b0;
+  end else if ((!op_div_wu && !op_mod_wu) || unsigned_finished) begin
+    unsigned_successfully_inputed <= 1'b0;
+  end
+  // 乘法延迟一拍
+  if((op_mul_w | op_mulh_w | op_mulh_wu) && !mul_finished) begin
+    mul_finished <= 1'b1;
+    mul_result <= $signed(alu_src1) * $signed(alu_src2);
+    mulu_result <= alu_src1 * alu_src2;
+  end else begin
+    mul_finished <= 1'b0;
+  end
+end
+
+assign alu_ready_go = (op_div_w | op_mod_w | op_div_wu | op_mod_wu) ? div_mod_finished
+                      : (op_mul_w | op_mulh_w | op_mulh_wu) ? mul_finished
+                      : 1'b1;
+assign div_mod_finished = (op_div_w | op_mod_w) ? signed_finished : unsigned_finished;
+
+wire [31:0] div_w_result = signed_div_result[63:32];
+wire [31:0] mod_w_result = signed_div_result[31:0];
+wire [31:0] div_wu_result = unsigned_div_result[63:32];
+wire [31:0] mod_wu_result = unsigned_div_result[31:0];
 
 // final result mux
 assign alu_result = ({32{op_add|op_sub}} & add_sub_result)

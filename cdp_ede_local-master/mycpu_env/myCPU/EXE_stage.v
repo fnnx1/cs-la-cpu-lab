@@ -49,12 +49,14 @@ module EXE_stage(
     wire [31:0] alu_src1 = src1_is_pc? ds_pc : rj_value;
     wire [31:0] alu_src2 = src2_is_imm? imm : rkd_value;
     wire [31:0] alu_result;
-
+    wire alu_ready_go;
     alu u_alu(
+        .clk        (clk       ),
         .alu_op     (alu_op    ),
         .alu_src1   (alu_src1  ),
         .alu_src2   (alu_src2  ),
-        .alu_result (alu_result)
+        .alu_result (alu_result),
+        .alu_ready_go (alu_ready_go)
     );
 
     wire [`ES_TO_MS_BUS_WD-1:0] to_es_to_ms_bus = {
@@ -70,7 +72,7 @@ module EXE_stage(
         mem_u  // 1
     };
 
-    wire es_ready_go = 1; // 数据已经准备好
+    wire es_ready_go = alu_ready_go; // 数据已经准备好
     reg es_valid; // 本级用到的数据可用
 
     assign es_to_ms_valid = es_valid && es_ready_go; // 传给下一级的数据是有效的

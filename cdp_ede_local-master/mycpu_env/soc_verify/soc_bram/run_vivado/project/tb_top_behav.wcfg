@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="1564000000001fs"></ZoomEndTime>
-      <Cursor1Time time="1091115000000fs"></Cursor1Time>
+      <ZoomStartTime time="1006659216000fs"></ZoomStartTime>
+      <ZoomEndTime time="1007915216001fs"></ZoomEndTime>
+      <Cursor1Time time="1007258216000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="392"></NameColumnWidth>
-      <ValueColumnWidth column_width="151"></ValueColumnWidth>
+      <ValueColumnWidth column_width="144"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="21" />
+   <WVObjectSize size="33" />
    <wave_markers>
       <marker label="" time="1040617684000" />
    </wave_markers>
@@ -106,5 +106,53 @@
    <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/u_WB_stage/alu_result">
       <obj_property name="ElementShortName">alu_result[31:0]</obj_property>
       <obj_property name="ObjectShortName">alu_result[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/aclk">
+      <obj_property name="ElementShortName">aclk</obj_property>
+      <obj_property name="ObjectShortName">aclk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/s_axis_divisor_tvalid">
+      <obj_property name="ElementShortName">s_axis_divisor_tvalid</obj_property>
+      <obj_property name="ObjectShortName">s_axis_divisor_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/s_axis_divisor_tready">
+      <obj_property name="ElementShortName">s_axis_divisor_tready</obj_property>
+      <obj_property name="ObjectShortName">s_axis_divisor_tready</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/s_axis_divisor_tdata">
+      <obj_property name="ElementShortName">s_axis_divisor_tdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">s_axis_divisor_tdata[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/s_axis_dividend_tvalid">
+      <obj_property name="ElementShortName">s_axis_dividend_tvalid</obj_property>
+      <obj_property name="ObjectShortName">s_axis_dividend_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/s_axis_dividend_tready">
+      <obj_property name="ElementShortName">s_axis_dividend_tready</obj_property>
+      <obj_property name="ObjectShortName">s_axis_dividend_tready</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/s_axis_dividend_tdata">
+      <obj_property name="ElementShortName">s_axis_dividend_tdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">s_axis_dividend_tdata[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/m_axis_dout_tvalid">
+      <obj_property name="ElementShortName">m_axis_dout_tvalid</obj_property>
+      <obj_property name="ObjectShortName">m_axis_dout_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div/m_axis_dout_tdata">
+      <obj_property name="ElementShortName">m_axis_dout_tdata[63:0]</obj_property>
+      <obj_property name="ObjectShortName">m_axis_dout_tdata[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_div_valid">
+      <obj_property name="ElementShortName">signed_div_valid</obj_property>
+      <obj_property name="ObjectShortName">signed_div_valid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/u_alu/signed_successfully_inputed">
+      <obj_property name="ElementShortName">signed_successfully_inputed</obj_property>
+      <obj_property name="ObjectShortName">signed_successfully_inputed</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/u_EXE_stage/ds_pc">
+      <obj_property name="ElementShortName">ds_pc[31:0]</obj_property>
+      <obj_property name="ObjectShortName">ds_pc[31:0]</obj_property>
    </wvobject>
 </wave_config>
