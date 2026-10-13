@@ -31,7 +31,7 @@ module ID_stage(
     reg ds_valid;
     wire ds_ready_go;
 
-    wire [11:0] alu_op;
+    wire [18:0] alu_op;
 
     wire src1_is_pc; //来自src为pc地址
     wire src2_is_imm; //src2为imm
@@ -230,6 +230,14 @@ module ID_stage(
     assign inst_st_h = op_31_26_d[6'b001010] & op_25_22_d[4'b0101];
     assign inst_ld_bu = op_31_26_d[6'b001010] & op_25_22_d[4'b1000];
     assign inst_ld_hu = op_31_26_d[6'b001010] & op_25_22_d[4'b1001];
+    // 乘除,7
+    assign inst_mul_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b01] & op_19_15_d[5'b11000];
+    assign inst_mulh_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b01] & op_19_15_d[5'b11001];
+    assign inst_mulh_wu = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b01] & op_19_15_d[5'b11010];
+    assign inst_div_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b10] & op_19_15_d[5'b00000];
+    assign inst_mod_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b10] & op_19_15_d[5'b00001];
+    assign inst_div_wu = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b10] & op_19_15_d[5'b00010];
+    assign inst_mod_wu = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'b10] & op_19_15_d[5'b00011];
 
     /////////////////////////////////
     /* 摘自 alu.v，参考用
@@ -245,6 +253,14 @@ module ID_stage(
     wire op_srl;   //logic right shift
     wire op_sra;   //arithmetic right shift
     wire op_lui;   //Load Upper Immediate
+    // 乘除法
+    wire op_mul_w;   //有符号乘法低位
+    wire op_mulh_w;  //有符号乘法高位
+    wire op_mulh_wu; //无符号乘法高位
+    wire op_div_w;   //有符号除法
+    wire op_mod_w;   //有符号取模
+    wire op_div_wu;  //无符号除法
+    wire op_mod_wu;  //无符号取模
     */
     assign alu_op[0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl | inst_pcaddu12i
                         | inst_ld_b | inst_ld_h | inst_st_b | inst_st_h | inst_ld_bu | inst_ld_hu;
@@ -259,6 +275,14 @@ module ID_stage(
     assign alu_op[9] = inst_srli_w | inst_srl_w;
     assign alu_op[10] = inst_srai_w | inst_sra_w;
     assign alu_op[11] = inst_lu12i_w;
+    // 乘除法
+    assign alu_op[12] = inst_mul_w;
+    assign alu_op[13] = inst_mulh_w;
+    assign alu_op[14] = inst_mulh_wu;
+    assign alu_op[15] = inst_div_w;
+    assign alu_op[16] = inst_mod_w;
+    assign alu_op[17] = inst_div_wu;
+    assign alu_op[18] = inst_mod_wu;
 
     //信号
     assign need_ui5 = inst_slli_w | inst_srli_w | inst_srai_w;
@@ -314,6 +338,7 @@ module ID_stage(
                     | inst_st_b | inst_st_h;
     assign dest = dst_is_r1 ? 5'd1 : rd;
 
+    // 访存类型
     assign mem_b = inst_ld_b | inst_ld_bu | inst_st_b;
     assign mem_h = inst_ld_h | inst_ld_hu | inst_st_h;
     assign mem_u = inst_ld_bu | inst_ld_hu;
@@ -415,7 +440,7 @@ module ID_stage(
     assign rf_wdata = ws_to_rf_bus[69:38];
 
     wire [`DS_TO_ES_BUS_WD-1:0] to_ds_to_es_bus = {
-        alu_op,//12
+        alu_op,//12+7=19
         src1_is_pc,//1
         src2_is_imm,//1
         src2_is_4,//1

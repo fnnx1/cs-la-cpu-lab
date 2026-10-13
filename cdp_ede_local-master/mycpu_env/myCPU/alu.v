@@ -1,7 +1,7 @@
 `include "mycpu_head.v"
 
 module alu(
-  input  wire [11:0] alu_op,
+  input  wire [18:0] alu_op,
   input  wire [31:0] alu_src1,
   input  wire [31:0] alu_src2,
   output wire [31:0] alu_result
@@ -19,6 +19,15 @@ wire op_sll;   //logic left shift
 wire op_srl;   //logic right shift
 wire op_sra;   //arithmetic right shift
 wire op_lui;   //Load Upper Immediate
+// 乘除法
+wire op_mul_w;   //有符号乘法低位
+wire op_mulh_w;  //有符号乘法高位
+wire op_mulh_wu; //无符号乘法高位
+wire op_div_w;   //有符号除法
+wire op_mod_w;   //有符号取模
+wire op_div_wu;  //无符号除法
+wire op_mod_wu;  //无符号取模
+
 
 // control code decomposition
 assign op_add  = alu_op[ 0];
@@ -33,6 +42,15 @@ assign op_sll  = alu_op[ 8];
 assign op_srl  = alu_op[ 9];
 assign op_sra  = alu_op[10];
 assign op_lui  = alu_op[11];
+
+assign op_mul_w = alu_op[12];
+assign op_mulh_w = alu_op[13];
+assign op_mulh_wu = alu_op[14];
+assign op_div_w = alu_op[15];
+assign op_mod_w = alu_op[16];
+assign op_div_wu = alu_op[17];
+assign op_mod_wu = alu_op[18];
+
 
 wire [31:0] add_sub_result;
 wire [31:0] slt_result;
@@ -86,6 +104,18 @@ assign sr64_result = {{32{op_sra & alu_src1[31]}}, alu_src1[31:0]} >> alu_src2[4
 
 assign sr_result   = sr64_result[31:0];
 
+// MUL, DIV, MOD result
+wire [63:0] mul_result = $signed(alu_src1) * $signed(alu_src2);
+
+wire [63:0] mulu_result = alu_src1 * alu_src2;
+wire [31:0] mul_w_result = mul_result[31:0];
+wire [31:0] mulh_w_result = mul_result[63:32];
+wire [31:0] mulh_wu_result = mulu_result[63:32];
+wire [31:0] div_w_result = $signed(alu_src1) / $signed(alu_src2);
+wire [31:0] mod_w_result = $signed(alu_src1) % $signed(alu_src2);
+wire [31:0] div_wu_result = alu_src1 / alu_src2;
+wire [31:0] mod_wu_result = alu_src1 % alu_src2;
+
 // final result mux
 assign alu_result = ({32{op_add|op_sub}} & add_sub_result)
                   | ({32{op_slt       }} & slt_result)
@@ -96,6 +126,13 @@ assign alu_result = ({32{op_add|op_sub}} & add_sub_result)
                   | ({32{op_xor       }} & xor_result)
                   | ({32{op_lui       }} & lui_result)
                   | ({32{op_sll       }} & sll_result)
-                  | ({32{op_srl|op_sra}} & sr_result);
+                  | ({32{op_srl|op_sra}} & sr_result)
+                  | ({32{op_mul_w     }} & mul_w_result)
+                  | ({32{op_mulh_w    }} & mulh_w_result)
+                  | ({32{op_mulh_wu   }} & mulh_wu_result)
+                  | ({32{op_div_w     }} & div_w_result)
+                  | ({32{op_mod_w     }} & mod_w_result)
+                  | ({32{op_div_wu    }} & div_wu_result)
+                  | ({32{op_mod_wu    }} & mod_wu_result);
 
 endmodule

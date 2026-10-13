@@ -11,7 +11,7 @@ module EXE_stage(
     output wire [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus,
     output wire [`BLOCK_BUS_WD-1:0] block_bus
 );
-    wire [11:0] alu_op;
+    wire [18:0] alu_op;
     wire        src1_is_pc;
     wire        src2_is_imm;
     wire        src2_is_4;
@@ -29,7 +29,7 @@ module EXE_stage(
 
     reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
     assign {
-        alu_op,//12
+        alu_op,//12+7=19
         src1_is_pc,//1
         src2_is_imm,//1
         src2_is_4,//1
