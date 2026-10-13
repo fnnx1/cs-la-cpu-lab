@@ -23,6 +23,9 @@ module EXE_stage(
     wire [31:0] rkd_value;
     wire [31:0] ds_pc;
     wire        res_from_mem;
+    wire        mem_b;
+    wire        mem_h;
+    wire        mem_u;
 
     reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
     assign {
@@ -37,7 +40,10 @@ module EXE_stage(
         rj_value,//32
         rkd_value,//32
         ds_pc,//32
-        res_from_mem//1
+        res_from_mem,//1
+        mem_b,//1
+        mem_h,//1
+        mem_u//1
     } = ds_to_es_bus_r;
 
     wire [31:0] alu_src1 = src1_is_pc? ds_pc : rj_value;
@@ -58,7 +64,10 @@ module EXE_stage(
         mem_we, // 1
         gr_we, // 1
         dest, // 5
-        ds_pc // 32
+        ds_pc, // 32
+        mem_b, // 1
+        mem_h, // 1
+        mem_u  // 1
     };
 
     wire es_ready_go = 1; // 数据已经准备好

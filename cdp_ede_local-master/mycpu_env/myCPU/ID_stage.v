@@ -52,6 +52,12 @@ module ID_stage(
     wire [31:0] br_offs;
     wire [31:0] jirl_offs;
 
+    /// 访存类型
+    wire mem_b; // 字节访问
+    wire mem_h; // 半字访问
+    // 默认ld时符号扩展
+    wire mem_u; // 无符号扩展，ld.bu、ld.hu
+
     //分段
     wire [5:0] op_31_26;
     wire [3:0] op_25_22;
@@ -217,6 +223,13 @@ module ID_stage(
     assign inst_bltu = op_31_26_d[6'b011010];
     // rj >=(unsigned) rkd ? => br_taken
     assign inst_bgeu = op_31_26_d[6'b011011];
+    // 访存,6
+    assign inst_ld_b = op_31_26_d[6'b001010] & op_25_22_d[4'b0000];
+    assign inst_ld_h = op_31_26_d[6'b001010] & op_25_22_d[4'b0001];
+    assign inst_st_b = op_31_26_d[6'b001010] & op_25_22_d[4'b0100];
+    assign inst_st_h = op_31_26_d[6'b001010] & op_25_22_d[4'b0101];
+    assign inst_ld_bu = op_31_26_d[6'b001010] & op_25_22_d[4'b1000];
+    assign inst_ld_hu = op_31_26_d[6'b001010] & op_25_22_d[4'b1001];
 
     /////////////////////////////////
     /* 摘自 alu.v，参考用
@@ -233,7 +246,8 @@ module ID_stage(
     wire op_sra;   //arithmetic right shift
     wire op_lui;   //Load Upper Immediate
     */
-    assign alu_op[0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl | inst_pcaddu12i;
+    assign alu_op[0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl | inst_pcaddu12i
+                        | inst_ld_b | inst_ld_h | inst_st_b | inst_st_h | inst_ld_bu | inst_ld_hu;
     assign alu_op[1] = inst_sub_w;
     assign alu_op[2] = inst_slt | inst_slti;
     assign alu_op[3] = inst_sltu | inst_sltui;
@@ -249,7 +263,8 @@ module ID_stage(
     //信号
     assign need_ui5 = inst_slli_w | inst_srli_w | inst_srai_w;
     assign need_si12 = inst_addi_w | inst_ld_w | inst_st_w
-                        | inst_slti | inst_sltui;
+                        | inst_slti | inst_sltui | // 补充算数
+                        | inst_ld_b | inst_ld_h | inst_st_b | inst_st_h | inst_ld_bu | inst_ld_hu; // 补充访存
     assign need_ui12 = inst_andi | inst_ori | inst_xori;
     assign need_si16 = inst_jirl | inst_beq | inst_bne;
     assign need_si20 = inst_lu12i_w | inst_pcaddu12i;
@@ -268,7 +283,8 @@ module ID_stage(
     assign jirl_offs = {{14{i16[15]}}, i16[15:0], 2'b0};
 
     assign src_reg_is_rd = inst_beq | inst_bne | inst_st_w
-                            | inst_blt | inst_bge | inst_bltu | inst_bgeu;
+                            | inst_blt | inst_bge | inst_bltu | inst_bgeu // 补充转移
+                            | inst_st_b | inst_st_h; // 补充访存
 
     assign src1_is_pc = inst_jirl | inst_bl | inst_pcaddu12i;
 
@@ -276,8 +292,8 @@ module ID_stage(
                         inst_srli_w |
                         inst_srai_w |
                         inst_addi_w |
-                        inst_ld_w |
-                        inst_st_w |
+                        inst_ld_w | inst_ld_b | inst_ld_h | inst_ld_bu | inst_ld_hu |
+                        inst_st_w | inst_st_b | inst_st_h |
                         inst_lu12i_w |
                         inst_jirl |
                         inst_bl |
@@ -288,12 +304,19 @@ module ID_stage(
                         inst_xori |
                         inst_pcaddu12i;
 
-    assign res_from_mem = inst_ld_w;
+    assign res_from_mem = inst_ld_w
+                        | inst_ld_b | inst_ld_h | inst_ld_bu | inst_ld_hu;
     assign dst_is_r1 = inst_bl;
     assign gr_we = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b
-                    & ~inst_blt & ~inst_bge & ~inst_bltu & ~inst_bgeu;
-    assign mem_we = inst_st_w;
+                    & ~inst_blt & ~inst_bge & ~inst_bltu & ~inst_bgeu
+                    & ~inst_st_b & ~inst_st_h;
+    assign mem_we = inst_st_w
+                    | inst_st_b | inst_st_h;
     assign dest = dst_is_r1 ? 5'd1 : rd;
+
+    assign mem_b = inst_ld_b | inst_ld_bu | inst_st_b;
+    assign mem_h = inst_ld_h | inst_ld_hu | inst_st_h;
+    assign mem_u = inst_ld_bu | inst_ld_hu;
 
     assign rf_raddr1 = rj;
     assign rf_raddr2 = src_reg_is_rd ? rd : rk;
@@ -403,7 +426,10 @@ module ID_stage(
         rj_value,//32
         rkd_value,//32
         ds_pc,//32
-        res_from_mem//1
+        res_from_mem,//1
+        mem_b,//1
+        mem_h,//1
+        mem_u//1
     };
 
     //////////////////////////////////////////////////
