@@ -42,6 +42,10 @@ module ID_stage(
     wire src_reg_is_rd;
     wire [4:0] dest;
     wire rj_eq_rd;
+    wire rj_l_rd;
+    wire rj_g_rd;
+    wire rj_lu_rd;
+    wire rj_gu_rd;
     wire [31:0] rj_value;
     wire [31:0] rkd_value;
     wire [31:0] imm;
@@ -205,10 +209,13 @@ module ID_stage(
     assign inst_sra_w = op_31_26_d[6'h00] & op_25_22_d[4'b0000] & op_21_20_d[2'b01] & op_19_15_d[5'b10000];
     // pc + {si20, 12'b0} => rd*
     assign inst_pcaddu12i = op_31_26_d[6'b000111] & ~ds_inst[25];
-    //
+    // rj <(signed) rkd ? => br_taken
     assign inst_blt = op_31_26_d[6'b011000];
+    // rj >=(signed) rkd ? => br_taken
     assign inst_bge = op_31_26_d[6'b011001];
+    // rj <(unsigned) rkd ? => br_taken
     assign inst_bltu = op_31_26_d[6'b011010];
+    // rj >=(unsigned) rkd ? => br_taken
     assign inst_bgeu = op_31_26_d[6'b011011];
 
     /////////////////////////////////
@@ -260,7 +267,8 @@ module ID_stage(
 
     assign jirl_offs = {{14{i16[15]}}, i16[15:0], 2'b0};
 
-    assign src_reg_is_rd = inst_beq | inst_bne | inst_st_w;
+    assign src_reg_is_rd = inst_beq | inst_bne | inst_st_w
+                            | inst_blt | inst_bge | inst_bltu | inst_bgeu;
 
     assign src1_is_pc = inst_jirl | inst_bl | inst_pcaddu12i;
 
@@ -282,7 +290,8 @@ module ID_stage(
 
     assign res_from_mem = inst_ld_w;
     assign dst_is_r1 = inst_bl;
-    assign gr_we = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b;
+    assign gr_we = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b
+                    & ~inst_blt & ~inst_bge & ~inst_bltu & ~inst_bgeu;
     assign mem_we = inst_st_w;
     assign dest = dst_is_r1 ? 5'd1 : rd;
 
@@ -347,14 +356,31 @@ module ID_stage(
         (hit1[1] && data_valid[1]) ? data_to_rf[1] :
         (hit1[2] && data_valid[2]) ? data_to_rf[2] : rf_rdata2;
 
+
+    /* added
+    wire inst_blt; // rj <(signed) rkd ? => br_taken
+    wire inst_bge; // rj >=(signed) rkd ? => br_taken
+    wire inst_bltu; // rj <(unsigned) rkd ? => br_taken
+    wire inst_bgeu; // rj >=(unsigned) rkd ? => br_taken
+    */
     assign rj_eq_rd = (rj_value == rkd_value);
+    assign rj_l_rd = ($signed(rj_value) < $signed(rkd_value));
+    assign rj_g_rd = ($signed(rj_value) >= $signed(rkd_value));
+    assign rj_lu_rd = (rj_value < rkd_value);
+    assign rj_gu_rd = (rj_value >= rkd_value);
+
     assign br_taken = (inst_beq && rj_eq_rd
                     || inst_bne && !rj_eq_rd
                     || inst_jirl
                     || inst_bl
                     || inst_b
+                    || inst_blt && rj_l_rd
+                    || inst_bge && rj_g_rd
+                    || inst_bltu && rj_lu_rd
+                    || inst_bgeu && rj_gu_rd
                     ) && ds_valid;
-    assign br_target = (inst_beq || inst_bne || inst_bl || inst_b) ? (ds_pc + br_offs) :
+    assign br_target = (inst_beq || inst_bne || inst_bl || inst_b
+                        || inst_blt || inst_bge || inst_bltu || inst_bgeu) ? (ds_pc + br_offs) :
                        /*inst_jirl*/ (rj_value + jirl_offs);
 
     assign br_bus = {br_taken, br_target};

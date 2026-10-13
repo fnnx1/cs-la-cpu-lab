@@ -126,8 +126,6 @@ module mycpu_top(
         .block_bus(block_bus[2])
     );
 
-
-
     // debug info generate
     // ws_to_rf_bus = {final_result[31:0], gr_we, dest[4:0], pc[31:0]} (70 位)
     assign debug_wb_pc       = ws_to_rf_bus[31:0];
