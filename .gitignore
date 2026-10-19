@@ -65,3 +65,5 @@ obj
 cdp_ede_local-master/mycpu_env/soc_verify/soc_bram/rtl
 
 USTB_loongarch32e-pipeline-CPU
+
+CPU设计实战loongarch.pdf
