@@ -1,79 +1,87 @@
-`include "mycpu_head.v"
+`include "mycpu_defines.vh"
 
 module WB_stage(
-    input wire clk,
-    input wire reset,
+    input  wire        clk,
+    input  wire        reset,
     //allowin
-    input wire rf_allowin,
-    output wire ws_allowin,
-    input wire ms_to_ws_valid,
-    output wire ws_to_rf_valid,
-    input wire [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus,
-    output wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus,
-    // data sram interface
-    input wire [31:0] data_sram_rdata,
-    // block bus
-    output wire [`BLOCK_BUS_WD-1:0] block_bus
+    output wire        ws_allowin,  //该阶段是否可以接收数据(最后一级, 恒为1)
+    //from ms stage
+    input  wire        ms_to_ws_valid,
+    input  wire [`MS_TO_WS_BUS_WD -1 :0] ms_to_ws_bus,  //上一级缓冲区
+    //to rf :write back
+    output wire [`WS_TO_RF_BUS_WD -1 :0] ws_to_rf_bus,  //写回缓冲区
+    // trace debug interface
+    output wire [31:0] debug_wb_pc,
+    output wire [ 3:0] debug_wb_rf_we,
+    output wire [ 4:0] debug_wb_rf_wnum,
+    output wire [31:0] debug_wb_rf_wdata,
+    input  wire [31:0] data_sram_rdata  //访存数据
 );
-
-    wire [31:0] alu_result;
-    wire        res_from_mem;
-    wire        gr_we;
-    wire [4:0]  dest;
-    wire [31:0] pc;
-    wire mem_b;
-    wire mem_h;
-    wire mem_u;
-
-    reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
-
-    assign {
-        alu_result, // 32，MEM 级 alu 结果
-        res_from_mem, // 1，是否需要从数据 RAM 取数
-        gr_we, // 1
-        dest, // 5
-        pc, // 32
-        mem_b, // 1
-        mem_h, // 1
-        mem_u  // 1
-    } = ms_to_ws_bus_r;
-    wire [1:0] mem_offset = alu_result[1:0];
-    wire [15:0] mem_halfword = (mem_offset == 2'b00) ? data_sram_rdata[15:0] :
-                        (mem_offset == 2'b10) ? data_sram_rdata[31:16] : 16'b0;
-    wire [7:0] mem_byte = (mem_offset == 2'b00) ? data_sram_rdata[7:0] :
-                        (mem_offset == 2'b01) ? data_sram_rdata[15:8] :
-                        (mem_offset == 2'b10) ? data_sram_rdata[23:16] :
-                        (mem_offset == 2'b11) ? data_sram_rdata[31:24] : 8'b0;
-    wire [31:0] final_mem_data = mem_b ? {{24{mem_u ? 1'b0 : mem_byte[7]}}, mem_byte} :
-                                mem_h ? {{16{mem_u ? 1'b0 : mem_halfword[15]}}, mem_halfword} :
-                                data_sram_rdata;
-    wire [31:0] final_result = res_from_mem ? final_mem_data: alu_result;
-
-
-    wire ws_ready_go = 1;
     reg ws_valid;
-    assign ws_allowin = !ws_valid || ws_ready_go && rf_allowin;
-    assign ws_to_rf_valid = ws_valid && ws_ready_go;
+    reg [`MS_TO_WS_BUS_WD -1 :0] ms_to_ws_bus_r;
+    wire ws_ready_go;
 
-    assign ws_to_rf_bus = {
-        final_result,// 32
-        gr_we && ws_valid, // 1
-        dest, // 5
-        pc // 32
-    };
+    wire [7:0] sram_rdata_byte0, sram_rdata_byte1, sram_rdata_byte2, sram_rdata_byte3;  //字节选
+    wire [15:0] sram_rdata_half0, sram_rdata_half1;  //半字选
+    wire [7:0] sram_rdata_byte;
+    wire [15:0] sram_rdata_half;
+    wire [1:0] mem_size , mem_addr_offset;  //内存访问的大小和地址偏移量
 
+    wire load_signed;   //是否要符号扩展
+
+    wire [31:0] sram_rdata;
+
+    assign ws_ready_go     = 1'b1;
+    //最后一级, 没有下游 allowin
+    assign ws_allowin      = !ws_valid || ws_ready_go;
+    assign mem_size = ms_to_ws_bus_r[73:72];
+    assign mem_addr_offset = ms_to_ws_bus_r[76:75];
+
+    assign load_signed = ms_to_ws_bus_r[74];
+
+    assign sram_rdata_byte0 = data_sram_rdata[7:0];
+    assign sram_rdata_byte1 = data_sram_rdata[15:8];
+    assign sram_rdata_byte2 = data_sram_rdata[23:16];
+    assign sram_rdata_byte3 = data_sram_rdata[31:24];
+    assign sram_rdata_half0 = data_sram_rdata[15:0];
+    assign sram_rdata_half1 = data_sram_rdata[31:16];
+
+    assign sram_rdata_byte = mem_addr_offset == 2'b00 ? sram_rdata_byte0 :
+                             mem_addr_offset == 2'b01 ? sram_rdata_byte1 :
+                             mem_addr_offset == 2'b10 ? sram_rdata_byte2 :
+                             sram_rdata_byte3;
+    assign sram_rdata_half = mem_addr_offset[1] == 1'b0 ? sram_rdata_half0 :
+                             sram_rdata_half1;
+
+    assign sram_rdata = (mem_size == `B) ? (load_signed ? {{24{sram_rdata_byte[7]}}, sram_rdata_byte} : {24'b0, sram_rdata_byte}) :
+                        (mem_size == `H) ? (load_signed ? {{16{sram_rdata_half[15]}}, sram_rdata_half} : {16'b0, sram_rdata_half}) :
+                        data_sram_rdata;
+
+    assign ws_to_rf_bus = {ws_valid && ms_to_ws_bus_r[71],  //[38]    load标志
+                           ws_valid && ms_to_ws_bus_r[70],  //[37]    写寄存器使能
+                           ms_to_ws_bus_r[69:65],           //[36:32] 写寄存器地址
+                           ms_to_ws_bus_r[64] ? sram_rdata : ms_to_ws_bus_r[63:32]//[31: 0] 写回数据
+                          };
+
+    // debug info generate
+    assign debug_wb_pc       = ws_valid ? ms_to_ws_bus_r[31:0] : 32'b0;
+    assign debug_wb_rf_we    = {4{ws_valid && ms_to_ws_bus_r[70]}};
+    assign debug_wb_rf_wnum  = ws_valid ? ms_to_ws_bus_r[69:65] : 5'b0;
+    assign debug_wb_rf_wdata = ws_valid ? ws_to_rf_bus[31:0] : 32'b0;
     always @(posedge clk) begin
         if (reset) begin
             ws_valid <= 1'b0;
-        end else if (ws_allowin) begin
+            ms_to_ws_bus_r <= 0;
+        end
+        else if (ws_allowin) begin
             ws_valid <= ms_to_ws_valid;
         end
+
         if (ms_to_ws_valid && ws_allowin) begin
             ms_to_ws_bus_r <= ms_to_ws_bus;
         end
+        else begin
+            ms_to_ws_bus_r <= 0;
+        end
     end
-
-    wire [31:0] data_to_rf = final_result;
-    wire data_valid = 1'b1;
-    assign block_bus = {gr_we, dest, data_valid, data_to_rf};
 endmodule

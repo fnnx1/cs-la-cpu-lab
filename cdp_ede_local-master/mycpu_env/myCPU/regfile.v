@@ -1,3 +1,4 @@
+// 单周期双输出的寄存器组
 module regfile(
     input  wire        clk,
     // READ PORT 1
@@ -15,7 +16,7 @@ reg [31:0] rf[31:0];
 
 //WRITE
 always @(posedge clk) begin
-    if (we && waddr != 5'b0) rf[waddr] <= wdata;
+    if (we) rf[waddr] <= wdata;
 end
 
 //READ OUT 1
