@@ -7,6 +7,8 @@
 +incdir+USTB_loongarch32e-pipeline-CPU/rtl
 +incdir+USTB_loongarch32e-pipeline-CPU/rtl/common
 +incdir+cdp_ede_local-master/mycpu_env/func/include
++incdir+USTB_loongarch32e-pipeline-CPU/rtl
++incdir+USTB_loongarch32e-pipeline-CPU/rtl/common
 
 # ==================== myCPU ====================
 cdp_ede_local-master/mycpu_env/myCPU/mycpu_top.v
