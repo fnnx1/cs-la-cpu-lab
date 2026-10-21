@@ -1,37 +1,33 @@
-# Verible 语言服务器（mshr-h.veriloghdl 扩展 → verible-verilog-ls）的项目文件列表
-#
-# 机制：LS 从「项目根 = VS Code 工作区文件夹」起【向上】查找本文件（默认名 verible.filelist）。
-#       列在这里的文件会被预加载，组成全局符号表 → 跨文件“转到定义/引用”才有效。
-# 语法：普通行 = 文件；'#' 或 '//' 开头 = 注释；'+incdir+<目录>' = 追加 include 搜索目录
-#       （仅为服务端内部解析，LS 目前没有 include 行点击/宏跳转功能）。
-# 路径：相对本文件所在目录（= 工作区根）或写绝对路径。
-#
-# 快速重建（在仓库根执行，然后人工复查一遍再合入）：
-#   find cdp_ede_local-master/mycpu_env/myCPU \
-#        cdp_ede_local-master/mycpu_env/soc_verify/soc_dram -name '*.v' | sort
-# 注意：同名模块只保留一份来源。gettrace/src/ 与其它三个 soc_verify 变体里各有一份
-#       soc_lite_top/confreg/bridge 副本，故不列入；soc_dram/run_vivado 下的 glbl.v
-#       是 Vivado 生成物，也不列入。
+# Verible language-server file list for the two CPU projects in this workspace.
+# Paths are relative to the workspace root.
 
-# ==================== include 搜索路径 ====================
+# ==================== include search paths ====================
 +incdir+cdp_ede_local-master/mycpu_env/myCPU
++incdir+cdp_ede_local-master/mycpu_env/myCPU/common
++incdir+USTB_loongarch32e-pipeline-CPU/rtl
++incdir+USTB_loongarch32e-pipeline-CPU/rtl/common
 +incdir+cdp_ede_local-master/mycpu_env/func/include
 
-# ==================== CPU RTL（开发主体） ====================
-cdp_ede_local-master/mycpu_env/myCPU/mycpu_head.v
+# ==================== myCPU ====================
 cdp_ede_local-master/mycpu_env/myCPU/mycpu_top.v
 cdp_ede_local-master/mycpu_env/myCPU/IF_stage.v
 cdp_ede_local-master/mycpu_env/myCPU/ID_stage.v
-cdp_ede_local-master/mycpu_env/myCPU/EXE_stage.v
+cdp_ede_local-master/mycpu_env/myCPU/EX_stage.v
 cdp_ede_local-master/mycpu_env/myCPU/MEM_stage.v
 cdp_ede_local-master/mycpu_env/myCPU/WB_stage.v
-cdp_ede_local-master/mycpu_env/myCPU/regfile.v
-cdp_ede_local-master/mycpu_env/myCPU/alu.v
-cdp_ede_local-master/mycpu_env/myCPU/tools.v
+cdp_ede_local-master/mycpu_env/myCPU/csr.v
+cdp_ede_local-master/mycpu_env/myCPU/common/alu.v
+cdp_ede_local-master/mycpu_env/myCPU/common/regfile.v
+cdp_ede_local-master/mycpu_env/myCPU/common/tools.v
 
-# ==================== soc_dram 快速仿真环境（可选，只做 CPU 内跳转时可整段删掉） ====================
-cdp_ede_local-master/mycpu_env/soc_verify/soc_dram/rtl/soc_lite_top.v
-cdp_ede_local-master/mycpu_env/soc_verify/soc_dram/rtl/BRIDGE/bridge_1x2.v
-cdp_ede_local-master/mycpu_env/soc_verify/soc_dram/rtl/CONFREG/confreg.v
-cdp_ede_local-master/mycpu_env/soc_verify/soc_dram/testbench/mycpu_tb.v
-cdp_ede_local-master/mycpu_env/soc_verify/soc_dram/testbench/async_ram.v
+# ==================== USTB pipeline CPU ====================
+USTB_loongarch32e-pipeline-CPU/rtl/mycpu_top.v
+USTB_loongarch32e-pipeline-CPU/rtl/IF_stage.v
+USTB_loongarch32e-pipeline-CPU/rtl/ID_stage.v
+USTB_loongarch32e-pipeline-CPU/rtl/EX_stage.v
+USTB_loongarch32e-pipeline-CPU/rtl/MEM_stage.v
+USTB_loongarch32e-pipeline-CPU/rtl/WB_stage.v
+USTB_loongarch32e-pipeline-CPU/rtl/csr.v
+USTB_loongarch32e-pipeline-CPU/rtl/common/alu.v
+USTB_loongarch32e-pipeline-CPU/rtl/common/regfile.v
+USTB_loongarch32e-pipeline-CPU/rtl/common/tools.v

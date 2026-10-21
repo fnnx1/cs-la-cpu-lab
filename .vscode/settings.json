@@ -16,17 +16,23 @@
   // ===================== 语法检查：Icarus Verilog =====================
   // 打开/保存文件时自动运行；也可在命令面板执行 “Verilog: Rerun lint tool”。
   "verilog.linting.linter": "iverilog",
+  "verilog.linting.iverilog.verilogHDL.standard": "Verilog-2005",
+  "verilog.linting.iverilog.runAtFileLocation": false,
   "verilog.linting.iverilog.includePath": [
-    // ID_stage.v / IF_stage.v 里的 `include "mycpu_head.v"
+    // 两个 CPU 工程各自的 RTL 入口目录。
     "cdp_ede_local-master/mycpu_env/myCPU",
+    "USTB_loongarch32e-pipeline-CPU/rtl",
+    // 公共 alu/regfile/tools 源码目录。
+    "cdp_ede_local-master/mycpu_env/myCPU/common",
+    "USTB_loongarch32e-pipeline-CPU/rtl/common",
     // cpu_cde.h / test_define.h 等头文件所在目录
     "cdp_ede_local-master/mycpu_env/func/include"
   ],
-  // 单文件 lint 时 iverilog 只编译当前文件，会把 IF_stage / regfile / alu 等
-  // 报成 “Unknown module type”。-y 让它按“模块名 = 文件名”去 myCPU/ 目录补找定义；
-  // tools.v 里的 decoder_* 文件名与模块名不一致，所以额外把它列进来。
-  // 副作用：编辑 tools.v 本身时会重复编译报 “has already been declared”，
-  //         此时可临时删掉最后一个路径。
+  // 单文件 lint 时 iverilog 只编译当前文件，-y 让它按“模块名 = 文件名”
+  // 搜索两个工程的 RTL/common 目录。两个工程当前共用同一份
+  // mycpu_defines.vh 和 common 模块，因此只需要显式加入一次 tools.v。
+  // lint_stubs.v 只补厂商生成的 div_signed/div_unsigned 黑盒，不参与综合。
+  // 编辑 tools.v 本身时，最后两个文件会造成重复定义，可临时删掉它们。
   // -Wall：打开 iverilog 的全部警告。其中对本项目最关键的是
   //   -Wimplicit —— 隐式声明 wire/reg：`assign xx = ...` 写到没声明的名字时
   //   xx 会变成 1 位的隐式 wire（例如漏了位宽声明的拼接
@@ -35,7 +41,7 @@
   // 注意：iverilog 不做位宽检查，所以“声明了但位宽写错/漏写”这类
   //   （如 `wire to_es_to_ms_bus = {...}` —— 声明成 1 位了）它报不出来，
   //   那类要靠 verilator，配置见文件末尾（装好后可切换 linter）。
-  "verilog.linting.iverilog.arguments": "-Wall -y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
+  "verilog.linting.iverilog.arguments": "-Wall -y cdp_ede_local-master/mycpu_env/myCPU -y cdp_ede_local-master/mycpu_env/myCPU/common -y USTB_loongarch32e-pipeline-CPU/rtl -y USTB_loongarch32e-pipeline-CPU/rtl/common cdp_ede_local-master/mycpu_env/myCPU/common/tools.v .vscode/iverilog_lint_stubs.v",
 
   // ===================== 格式化：verible-verilog-format =====================
   // 选中代码后 Shift+Alt+F 即可；注意不支持“仅格式化选中范围”。
@@ -56,8 +62,11 @@
   //   -Wno-DECLFILENAME    tools.v 里文件名与模块名不一致，否则会刷屏
   //   -Wno-fatal           警告不要变成 error（否则退出码非 0）
   // 若某些警告太吵，可自行追加 -Wno-XXX（如 -Wno-UNUSED）。
-  "verilog.linting.verilator.arguments": "-Wall -Wno-DECLFILENAME -Wno-fatal -y cdp_ede_local-master/mycpu_env/myCPU +libext+.v",
+  "verilog.linting.verilator.arguments": "-Wall -Wno-DECLFILENAME -Wno-fatal -y cdp_ede_local-master/mycpu_env/myCPU -y cdp_ede_local-master/mycpu_env/myCPU/common -y USTB_loongarch32e-pipeline-CPU/rtl -y USTB_loongarch32e-pipeline-CPU/rtl/common +libext+.v",
   "verilog.linting.verilator.includePath": [
-    "cdp_ede_local-master/mycpu_env/myCPU"
+    "cdp_ede_local-master/mycpu_env/myCPU",
+    "cdp_ede_local-master/mycpu_env/myCPU/common",
+    "USTB_loongarch32e-pipeline-CPU/rtl",
+    "USTB_loongarch32e-pipeline-CPU/rtl/common"
   ]
 }

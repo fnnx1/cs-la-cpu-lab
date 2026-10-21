@@ -46,6 +46,12 @@ module IF_stage(
     wire br_taken; //跳转信号
     wire [31:0] br_target;//跳转地址
 
+    reg br_pending; // 待处理跳转
+    reg [31:0] br_target_pending; // 待处理跳转地址
+    wire br_drop_next_inst; // br 时总是会有一条顺序指令正在读，应该丢弃
+
+    wire br_active;
+
     wire [31:0] fs_inst; //fs阶段的inst和pc,往后传递
     reg [31:0] fs_pc;
     // 用于完成取指时 ds 不允许进入的情况，暂存指令
@@ -82,7 +88,8 @@ module IF_stage(
     assign seq_pc = fs_pc + 3'h4; //顺序
     assign next_pc = (has_ex || int_flush) ? ex_pc :
                     (ertn_flush) ? ertn_entry :
-                    (br_taken == 1 ) ? br_target :
+                    (br_taken)  ? br_target :
+                    (br_pending) ? br_target_pending :
                     seq_pc;
 
     // 这里稍微修了一下，is_ADEF 通过组合逻辑决定fs_inst，而
@@ -124,16 +131,29 @@ module IF_stage(
 
 
     //IF stage
-    // 指令已经读出或有有效缓冲，且下一条指令不应丢弃
-    // 这里的丢弃主要针对异常发生时，inst sram已经有请求发出
-    assign fs_ready_go = !drop_next_inst && (inst_sram_data_ok || fs_inst_cache_valid);
+    // 指令已经读出或有有效缓冲
+    // 感觉ready_go更像是事务完成信号，不保证数据有效
+    assign fs_ready_go = inst_sram_data_ok || fs_inst_cache_valid;
+
+    // 允许进入，需要了解下一级是否可以进入目的是可以实现保持停顿
     assign fs_allowin = !fs_valid || fs_ready_go && ds_allowin;
-    //允许进入，需要了解下一级是否可以进入目的是可以实现保持停顿
-    //br_taken 有效时, 本拍正要送往 ds 的那条指令属于跳转后的顺序路径(错误路径), 必须作废
+
+    assign br_active = br_pending || br_taken;
+    always @(posedge clk) begin
+        if (reset || any_flush) begin
+            br_pending <= 1'b0;
+            br_target_pending <= 32'b0;
+        end else if (br_taken) begin
+            br_pending <= 1'b1;
+            br_target_pending <= br_target;
+        end else if (to_fs_valid && fs_allowin) begin
+            br_pending <= 1'b0;
+        end
+    end
 
     // fs_valid 应该和可用的[正在取指/已取指]pc绑定
-    assign fs_to_ds_valid = fs_valid && fs_ready_go && !br_taken;
-
+    // 注意异常和跳转都有可能要丢弃最后一条指令
+    assign fs_to_ds_valid = fs_valid && fs_ready_go && !drop_next_inst && !br_active;
 
     always@(posedge clk)begin
         if(reset || any_flush)begin
