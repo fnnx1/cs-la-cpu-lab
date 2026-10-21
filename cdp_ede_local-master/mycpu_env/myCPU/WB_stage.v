@@ -1,79 +1,96 @@
-`include "mycpu_head.v"
+`include "mycpu_defines.vh"
 
 module WB_stage(
-    input wire clk,
-    input wire reset,
+    input  wire        clk,
+    input  wire        reset,
     //allowin
-    input wire rf_allowin,
-    output wire ws_allowin,
-    input wire ms_to_ws_valid,
-    output wire ws_to_rf_valid,
-    input wire [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus,
-    output wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus,
-    // data sram interface
-    input wire [31:0] data_sram_rdata,
-    // block bus
-    output wire [`BLOCK_BUS_WD-1:0] block_bus
+    output wire        ws_allowin,  //该阶段是否可以接收数据(最后一级, 恒为1)
+    //from ms stage
+    input  wire        ms_to_ws_valid,
+    input  wire [`MS_TO_WS_BUS_WD -1 :0] ms_to_ws_bus,  //上一级缓冲区
+    //to rf :write back
+    output wire [`WS_TO_RF_BUS_WD -1 :0] ws_to_rf_bus,  //写回缓冲区
+    output wire [`WS_TO_CSR_BUS_WD -1 :0] ws_to_csr_bus,  //写回CSR缓冲区
+    // trace debug interface
+    output wire [31:0] debug_wb_pc,
+    output wire [ 3:0] debug_wb_rf_we,
+    output wire [ 4:0] debug_wb_rf_wnum,
+    output wire [31:0] debug_wb_rf_wdata,
+    output wire        ws_to_rf_valid,
+
+    input wire has_ex,  //无条件例外
+    input wire int_flush,
+    input wire ertn_flush
+    
 );
 
-    wire [31:0] alu_result;
-    wire        res_from_mem;
-    wire        gr_we;
-    wire [4:0]  dest;
-    wire [31:0] pc;
-    wire mem_b;
-    wire mem_h;
-    wire mem_u;
-
-    reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
-
-    assign {
-        alu_result, // 32，MEM 级 alu 结果
-        res_from_mem, // 1，是否需要从数据 RAM 取数
-        gr_we, // 1
-        dest, // 5
-        pc, // 32
-        mem_b, // 1
-        mem_h, // 1
-        mem_u  // 1
-    } = ms_to_ws_bus_r;
-    wire [1:0] mem_offset = alu_result[1:0];
-    wire [15:0] mem_halfword = (mem_offset == 2'b00) ? data_sram_rdata[15:0] :
-                        (mem_offset == 2'b10) ? data_sram_rdata[31:16] : 16'b0;
-    wire [7:0] mem_byte = (mem_offset == 2'b00) ? data_sram_rdata[7:0] :
-                        (mem_offset == 2'b01) ? data_sram_rdata[15:8] :
-                        (mem_offset == 2'b10) ? data_sram_rdata[23:16] :
-                        (mem_offset == 2'b11) ? data_sram_rdata[31:24] : 8'b0;
-    wire [31:0] final_mem_data = mem_b ? {{24{mem_u ? 1'b0 : mem_byte[7]}}, mem_byte} :
-                                mem_h ? {{16{mem_u ? 1'b0 : mem_halfword[15]}}, mem_halfword} :
-                                data_sram_rdata;
-    wire [31:0] final_result = res_from_mem ? final_mem_data: alu_result;
-
-
-    wire ws_ready_go = 1;
+    //异常处理
+    wire ws_ex;
+    wire [5:0] ws_excode;
+    wire [8:0] ws_esubcode;
+    
+    wire [11:0] csr_write_num;
+    wire [31:0] csr_wmask;
+    wire csr_ertn;
+    wire csr_we;
+    wire [31:0] csr_wdata;
     reg ws_valid;
-    assign ws_allowin = !ws_valid || ws_ready_go && rf_allowin;
-    assign ws_to_rf_valid = ws_valid && ws_ready_go;
+    reg [`MS_TO_WS_BUS_WD -1 :0] ms_to_ws_bus_r;
+    wire ws_ready_go;
+    wire [31:0] wb_pc;
+    wire [31:0] wb_vaddr;
 
+    assign wb_pc = ms_to_ws_bus_r[31:0];
+    assign wb_vaddr = ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-1:`MS_TO_WS_BUS_WD-32];
+    assign ws_ready_go     = 1'b1;
+    //最后一级, 没有下游 allowin
+    assign ws_allowin      = !ws_valid || ws_ready_go;
+   
+    // ws_to_rf_bus 总位宽 = 1+6+9+1+1+5+32 = 55 bit
     assign ws_to_rf_bus = {
-        final_result,// 32
-        gr_we && ws_valid, // 1
-        dest, // 5
-        pc // 32
-    };
+                        ws_ex,          //[54]
+                        ws_excode,      //[53:48]
+                        ws_esubcode,    //[47:39]
+                        ws_valid && ms_to_ws_bus_r[71],  //[38]    load标志
+                        !ws_ex && ws_valid && ms_to_ws_bus_r[70],  //[37]    写寄存器使能
+                        ms_to_ws_bus_r[69:65],           //[36:32] 写寄存器地址
+                        ms_to_ws_bus_r[63:32]//[31: 0] 写回数据
+                        };
+    // ws_to_csr_bus 总位宽 = 1(csr_ertn)+12+32+1+32 + 32 = 110 bit
+    assign ws_to_csr_bus = {
+                            wb_vaddr,       //[141:110] 异常对应的访存地址
+                            wb_pc,//[109:78] 写回的PC，当异常发生时用于记录异常发生的地址，因为debug_pc会失效，所以要单独记录
+                            ws_valid && csr_ertn, //[77]     ertn指令标志
+                            csr_write_num,  //[76:65]
+                            csr_wmask,      //[64:33]
+                            csr_we,         //[32]
+                            csr_wdata       //[31:0]
+                            };
 
+    assign ws_ex = ws_valid && ms_to_ws_bus_r[87];
+    assign ws_excode = ws_valid ? ms_to_ws_bus_r[86:81] : 6'b0;
+    assign ws_esubcode = ws_valid ? ms_to_ws_bus_r[80:72] : 9'b0;
+    
+    assign csr_we = ws_valid && ms_to_ws_bus_r[120];
+    assign csr_ertn = ms_to_ws_bus_r[165];
+    assign csr_wdata = ms_to_ws_bus_r[119:88];
+    assign csr_wmask = ms_to_ws_bus_r[152:121];
+    assign csr_write_num = ms_to_ws_bus_r[164:153];
+    assign ws_to_rf_valid = ws_valid;
+    // debug info generate
+    assign debug_wb_pc       = ws_valid ? ms_to_ws_bus_r[31:0] : 32'b0;
+    assign debug_wb_rf_we    = {4{!ws_ex && ws_valid && ms_to_ws_bus_r[70]}};
+    assign debug_wb_rf_wnum  = ws_valid ? ms_to_ws_bus_r[69:65] : 5'b0;
+    assign debug_wb_rf_wdata = ws_valid ? ws_to_rf_bus[31:0] : 32'b0;
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || has_ex || ertn_flush || int_flush) begin
             ws_valid <= 1'b0;
-        end else if (ws_allowin) begin
-            ws_valid <= ms_to_ws_valid;
-        end
-        if (ms_to_ws_valid && ws_allowin) begin
-            ms_to_ws_bus_r <= ms_to_ws_bus;
+            ms_to_ws_bus_r <= 0;
+        end else begin
+            if (ws_allowin)
+                ws_valid <= ms_to_ws_valid;
+            if (ms_to_ws_valid && ws_allowin)
+                ms_to_ws_bus_r <= ms_to_ws_bus;
         end
     end
-
-    wire [31:0] data_to_rf = final_result;
-    wire data_valid = 1'b1;
-    assign block_bus = {gr_we, dest, data_valid, data_to_rf};
 endmodule

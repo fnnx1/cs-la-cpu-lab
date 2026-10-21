@@ -1,135 +1,289 @@
-`include "mycpu_head.v"
+/* fs: fetch stage
+ * ds: decode stage
+ * es: execute stage
+ * ms: memory stage
+ * ws: write back stage
+ */
+`include "mycpu_defines.vh"
 
+/*
+    .inst_sram_req    (cpu_inst_req    ),
+    .inst_sram_wr     (cpu_inst_wr     ),
+    .inst_sram_size   (cpu_inst_size   ),
+    .inst_sram_wstrb  (cpu_inst_wstrb  ),
+    .inst_sram_addr   (cpu_inst_addr   ),
+    .inst_sram_wdata  (cpu_inst_wdata  ),
+    .inst_sram_addr_ok(cpu_inst_addr_ok),
+    .inst_sram_data_ok(cpu_inst_data_ok),
+    .inst_sram_rdata  (cpu_inst_rdata  ),
+
+    .data_sram_req    (cpu_data_req    ),
+    .data_sram_wr     (cpu_data_wr     ),
+    .data_sram_size   (cpu_data_size   ),
+    .data_sram_wstrb  (cpu_data_wstrb  ),
+    .data_sram_addr   (cpu_data_addr   ),
+    .data_sram_wdata  (cpu_data_wdata  ),
+    .data_sram_addr_ok(cpu_data_addr_ok),
+    .data_sram_data_ok(cpu_data_data_ok),
+    .data_sram_rdata  (cpu_data_rdata  ),
+*/
 module mycpu_top(
     input  wire        clk,
     input  wire        resetn,
     // inst sram interface
-    output wire [ 3:0] inst_sram_we,
-    output wire        inst_sram_en,
+    output wire        inst_sram_req,
+    output wire        inst_sram_wr,
+    output wire [1:0]  inst_sram_size,
+    output wire [3:0]  inst_sram_wstrb,
     output wire [31:0] inst_sram_addr,
     output wire [31:0] inst_sram_wdata,
+    input  wire        inst_sram_addr_ok,
+    input  wire        inst_sram_data_ok,
     input  wire [31:0] inst_sram_rdata,
     // data sram interface
-    output wire [ 3:0] data_sram_we,
-    output wire        data_sram_en,
+    output wire        data_sram_req,
+    output wire        data_sram_wr,
+    output wire [1:0]  data_sram_size,
+    output wire [3:0]  data_sram_wstrb,
     output wire [31:0] data_sram_addr,
     output wire [31:0] data_sram_wdata,
+    input  wire        data_sram_addr_ok,
+    input  wire        data_sram_data_ok,
     input  wire [31:0] data_sram_rdata,
     // trace debug interface
-    output wire [31:0] debug_wb_pc,
-    output wire [ 3:0] debug_wb_rf_we,
-    output wire [ 4:0] debug_wb_rf_wnum,
-    output wire [31:0] debug_wb_rf_wdata
+    output wire [31:0] debug_wb_pc,         //pc值
+    output wire [ 3:0] debug_wb_rf_we,      //写寄存器信号
+    output wire [ 4:0] debug_wb_rf_wnum,    //写入的寄存器号
+    output wire [31:0] debug_wb_rf_wdata    //写入数据
 );
-    reg reset = 1'b1;
-    // 统一时钟上沿采样
+
+    wire reset;
+    wire        ds_allowin, es_allowin, ms_allowin, ws_allowin;
+    wire        fs_to_ds_valid, ds_to_es_valid, es_to_ms_valid, ms_to_ws_valid, ws_valid;
+
+    wire [`BR_BUS_WD       -1:0] br_bus;
+    wire [`FS_TO_DS_BUS_WD -1:0] fs_to_ds_bus;
+    wire [`DS_TO_ES_BUS_WD -1:0] ds_to_es_bus;
+    wire [`ES_TO_MS_BUS_WD -1:0] es_to_ms_bus;
+    wire [`MS_TO_WS_BUS_WD -1:0] ms_to_ws_bus;
+    wire [`WS_TO_RF_BUS_WD -1:0] ws_to_rf_bus;
+    wire [`WS_TO_CSR_BUS_WD -1:0] ws_to_csr_bus;
+
+    // CSR冲突总线格式：{CSR写使能, CSR写地址}
+    wire [12:0] es_csr_conflict_bus;
+    wire [12:0] ms_csr_conflict_bus;
+    wire [12:0] ws_csr_conflict_bus;
+
+    wire        csr_re;     //读使能
+    wire [11:0] csr_raddr;  //ID阶段CSR读地址
+    wire [11:0] csr_waddr;  //写回阶段CSR写地址
+    wire        csr_we;     //写使能
+    wire [31:0] csr_wmask;  //写掩码
+    wire [31:0] csr_wvalue; //写入值
+    wire [31:0] csr_rvalue; //读出值
+    wire        wb_csr_we;
+
+    wire [31:0] ex_entry;   //异常入口地址 
+    wire        has_ex;    //无条件例外
+    wire        has_int; 
+    reg int_flush_p;
+    wire int_flush;
+    wire        ertn_flush; //异常返回刷新信号
+    wire [31:0] ertn_entry;
+    wire        wb_ex;      //写回阶段异常信号
+    wire [5:0]  wb_ecode;   //写回阶段异常码
+    wire [8:0]  wb_esubcode; //写回阶段异常子码
+    wire [31:0] wb_pc;      //写回阶段异常发生的PC
+    wire [31:0] wb_vaddr;   //写回阶段异常相关虚地址
+
+    wire [7:0]  hw_int_in;  //硬件中断输入
+    wire        ipi_int_in; //IPI中断输入 ioctl
+    wire        coreid_in;  //核心ID输入
+
+    assign reset = ~resetn; //复位信号
+    assign es_csr_conflict_bus = {es_to_ms_bus[156], es_to_ms_bus[200:189]};
+    assign ms_csr_conflict_bus = {ms_to_ws_bus[120], ms_to_ws_bus[164:153]};
+    assign ws_csr_conflict_bus = {ws_to_csr_bus[32], ws_to_csr_bus[76:65]};
+
+    //触发器，防止has_int持久刷新
+    assign int_flush = !int_flush_p && has_int;
     always @(posedge clk) begin
-        reset <= ~resetn;
+        if (reset) begin
+            int_flush_p <= 1'b0;
+        end
+        else begin
+            int_flush_p <= has_int;
+        end
     end
 
-    wire [`BR_BUS_WD-1:0] br_bus;
+    assign {ertn_flush, csr_waddr, csr_wmask, wb_csr_we,
+            csr_wvalue} = ws_to_csr_bus;
+    assign csr_we = wb_csr_we;
+    assign {wb_ex, wb_ecode, wb_esubcode} = ws_to_rf_bus[54:39];
+    assign wb_pc = ws_to_csr_bus[109:78];
+    assign wb_vaddr = ws_to_csr_bus[141:110];
 
-    // 流水线级间总线
-    wire [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus;
-    wire ds_allowin; // 前递信号
-    wire fs_to_ds_valid; //后递信号
-    //
-    wire [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus;
-    wire es_allowin;
-    wire ds_to_es_valid;
-    //
-    wire [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus;
-    wire ms_allowin;
-    wire es_to_ms_valid;
-    //
-    wire [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus;
-    wire ws_allowin;
-    wire ms_to_ws_valid;
-    //
-    wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus;
-    wire rf_allowin;
-    wire ws_to_rf_valid;
-
-    // 寄存器堆永远可以接收写回：WB 不会因此停住，
-    // 这是 load 数据能组合直通到 WS->RF 总线的前提
-    assign rf_allowin = 1'b1;
-
-    wire [`BLOCK_BUS_WD-1:0] block_bus [0:2];
-
-    IF_stage u_IF_stage(
+    assign hw_int_in = 8'b0;//测例这么要求的，本质寄存器也是只读状态
+    //暂定
+    assign ipi_int_in = 1'b0;
+    assign coreid_in = 1'b0;
+    csr _csr(
         .clk(clk),
         .reset(reset),
-        .ds_allowin(ds_allowin),
-        .br_bus(br_bus),
+        .csr_re(csr_re),
+        .csr_raddr(csr_raddr), 
+        .csr_waddr(csr_waddr),
+        .csr_we(csr_we),
+        .csr_wmask(csr_wmask),
+        .csr_wvalue(csr_wvalue),
+        .csr_rvalue(csr_rvalue),
+        .hw_int_in(hw_int_in),
+        .ipi_int_in(ipi_int_in),
+        .ex_entry(ex_entry),
+        .has_ex(has_ex),    //无条件异常
+        .has_int(has_int),
+        .int_flush(int_flush),  //中断刷新信号
+        .ertn_flush(ertn_flush),
+        .ertn_entry(ertn_entry),
+        .wb_ex(wb_ex),
+        .wb_ecode(wb_ecode),
+        .wb_esubcode(wb_esubcode),
+        .wb_pc(wb_pc),
+        .wb_vaddr(wb_vaddr),
+        .coreid_in(coreid_in)
+    );
+    // 取指
+    IF_stage if_stage(
+        .clk(clk), //时钟
+        .reset(reset),   //复位
+        .ds_allowin(ds_allowin),  //告知是否下个阶段可以接受数据输入
+        .br_bus(br_bus), //
         .fs_to_ds_valid(fs_to_ds_valid),
         .fs_to_ds_bus(fs_to_ds_bus),
-        .inst_sram_en(inst_sram_en),
-        .inst_sram_we(inst_sram_we),
-        .inst_sram_addr(inst_sram_addr),
-        .inst_sram_wdata(inst_sram_wdata),
-        .inst_sram_rdata(inst_sram_rdata)
+        // inst sram interface
+        .inst_sram_req    (inst_sram_req),
+        .inst_sram_wr     (inst_sram_wr),
+        .inst_sram_size   (inst_sram_size   ),
+        .inst_sram_wstrb  (inst_sram_wstrb  ),
+        .inst_sram_addr   (inst_sram_addr   ),
+        .inst_sram_wdata  (inst_sram_wdata  ),
+        .inst_sram_addr_ok(inst_sram_addr_ok),
+        .inst_sram_data_ok(inst_sram_data_ok),
+        .inst_sram_rdata  (inst_sram_rdata  ),
+        .ex_pc(ex_entry),
+        .has_ex(has_ex),
+        .int_flush(int_flush),
+        .ertn_flush(ertn_flush),
+        .ertn_entry(ertn_entry)
     );
 
-    ID_stage u_ID_stage(
+    // 译码
+    ID_stage id_stage(
         .clk(clk),
         .reset(reset),
-        .ds_allowin(ds_allowin),
-        .es_allowin(es_allowin),
+        //allowin
+        .es_allowin(es_allowin),  //握手信号
+        .ds_allowin(ds_allowin),  //该阶段是否k可以接收数据
+        //from if stage
         .fs_to_ds_valid(fs_to_ds_valid),
         .fs_to_ds_bus(fs_to_ds_bus),
+        //to ex stage
         .ds_to_es_valid(ds_to_es_valid),
         .ds_to_es_bus(ds_to_es_bus),
+        //to if stage
         .br_bus(br_bus),
+        .csr_re(csr_re),
+        .csr_raddr(csr_raddr),
+        .csr_rdata(csr_rvalue),
+        //to rf :write back
         .ws_to_rf_bus(ws_to_rf_bus),
-        .block_bus_sum({block_bus[2], block_bus[1], block_bus[0]})
-    );
-
-
-    EXE_stage u_EXE_stage(
-        .clk(clk),
-        .reset(reset),
-        .es_allowin(es_allowin),
-        .ms_allowin(ms_allowin),
-        .ds_to_es_bus(ds_to_es_bus),
-        .es_to_ms_valid(es_to_ms_valid),
-        .ds_to_es_valid(ds_to_es_valid),
         .es_to_ms_bus(es_to_ms_bus),
-        .block_bus(block_bus[0])
-    );
-
-    MEM_stage u_MEM_stage(
-        .clk(clk),
-        .reset(reset),
-        .ws_allowin(ws_allowin),
-        .ms_allowin(ms_allowin),
-        .es_to_ms_bus(es_to_ms_bus),
+        .es_dest({es_to_ms_bus[98],es_to_ms_bus[104:99], es_to_ms_bus[63:32]}),
+        .ms_dest({ms_to_ws_bus[71],ms_to_ws_bus[70:65], ms_to_ws_bus[63:32]}),
         .es_to_ms_valid(es_to_ms_valid),
-        .ms_to_ws_bus(ms_to_ws_bus),
         .ms_to_ws_valid(ms_to_ws_valid),
-        .data_sram_en(data_sram_en),
-        .data_sram_we(data_sram_we),
+        .ws_to_rf_valid(ws_valid),
+        .has_ex(has_ex),
+        .int_flush(int_flush),
+        .ertn_flush(ertn_flush),
+        .es_csr_conflict_bus(es_csr_conflict_bus),
+        .ms_csr_conflict_bus(ms_csr_conflict_bus),
+        .ws_csr_conflict_bus(ws_csr_conflict_bus)
+    );
+
+    EX_stage ex_stage(
+        .clk(clk),
+        .reset(reset),
+        //allowin
+        .ms_allowin(ms_allowin),  //握手信号
+        .es_allowin(es_allowin),  //该阶段是否k可以接收数据
+        //from ds stage
+        .ds_to_es_valid(ds_to_es_valid),
+        .ds_to_es_bus(ds_to_es_bus),  //上一级缓冲区
+        //to ms stage
+        .es_to_ms_valid(es_to_ms_valid),  //告知下一级数据是否有效
+        .es_to_ms_bus(es_to_ms_bus),       //下一级缓冲区
+        // data sram request interface
+        .data_sram_req(data_sram_req),
+        .data_sram_wr(data_sram_wr),
+        .data_sram_size(data_sram_size),
+        .data_sram_wstrb(data_sram_wstrb),
         .data_sram_addr(data_sram_addr),
         .data_sram_wdata(data_sram_wdata),
-        .block_bus(block_bus[1])
+        .data_sram_addr_ok(data_sram_addr_ok),
+        .int_flush(int_flush),
+        .ertn_flush(ertn_flush),
+        .ms_ex(ms_ex),
+        .ms_ertn(ms_ertn),
+        .ms_to_ws_valid(ms_to_ws_valid),
+        .wb_ex(wb_ex),
+        .wb_ertn(wb_ertn),
+        .ws_to_rf_valid(ws_valid),
+        .has_ex(has_ex)
     );
+    assign ms_ertn = ms_to_ws_bus[165];
+    assign wb_ertn = ws_to_csr_bus[77];
 
-    WB_stage u_WB_stage(
+    MEM_stage mem_stage(
         .clk(clk),
         .reset(reset),
-        .rf_allowin(rf_allowin),
-        .ws_allowin(ws_allowin),
-        .ms_to_ws_valid(ms_to_ws_valid),
-        .ms_to_ws_bus(ms_to_ws_bus),
-        .ws_to_rf_bus(ws_to_rf_bus),
-        .ws_to_rf_valid(ws_to_rf_valid),
+        //allowin
+        .ws_allowin(ws_allowin),  //握手信号
+        .ms_allowin(ms_allowin),  //该阶段是否可以接收数据
+        //from es stage
+        .es_to_ms_valid(es_to_ms_valid),
+        .es_to_ms_bus(es_to_ms_bus),  //上一级缓冲区
+        //to ws stage
+        .ms_to_ws_valid(ms_to_ws_valid),  //告知下一级数据是否有效
+        .ms_to_ws_bus(ms_to_ws_bus),   //写回缓冲区
+        // data sram response interface
         .data_sram_rdata(data_sram_rdata),
-        .block_bus(block_bus[2])
+        .data_sram_data_ok(data_sram_data_ok),
+        .has_ex(has_ex),
+        .int_flush(int_flush),
+        .ertn_flush(ertn_flush),
+        .mem_ex(ms_ex)
     );
 
-    // debug info generate
-    // ws_to_rf_bus = {final_result[31:0], gr_we, dest[4:0], pc[31:0]} (70 位)
-    assign debug_wb_pc       = ws_to_rf_bus[31:0];
-    assign debug_wb_rf_we    = {4{ws_to_rf_bus[37] & ws_to_rf_valid}};
-    assign debug_wb_rf_wnum  = ws_to_rf_bus[36:32];
-    assign debug_wb_rf_wdata = ws_to_rf_bus[69:38];
+    WB_stage wb_stage(
+        .clk(clk),
+        .reset(reset),
+        //allowin
+        .ws_allowin(ws_allowin),  //该阶段是否k可以接收数据
+        //from ms stage
+        .ms_to_ws_valid(ms_to_ws_valid),
+        .ms_to_ws_bus(ms_to_ws_bus),  //上一级缓冲区
+        //to rf :write back
+        .ws_to_rf_bus(ws_to_rf_bus),   //写回缓冲区
+        .ws_to_csr_bus(ws_to_csr_bus),
+        // trace debug interface
+        .debug_wb_pc(debug_wb_pc),
+        .debug_wb_rf_we(debug_wb_rf_we),
+        .debug_wb_rf_wnum(debug_wb_rf_wnum),
+        .debug_wb_rf_wdata(debug_wb_rf_wdata),
+        .ws_to_rf_valid(ws_valid),
+        .has_ex(has_ex),
+        .int_flush(int_flush),
+        .ertn_flush(ertn_flush)
+    );
 endmodule
