@@ -20,7 +20,8 @@ module MEM_stage(
     input  wire int_flush,
     input  wire ertn_flush,
 
-    output wire mem_ex //用于指示MEM阶段是否发生异常/或有异常指令，用于处理精确异常中访存的冲突
+    output wire mem_ex, //用于指示MEM阶段是否发生异常/或有异常指令，用于处理精确异常中访存的冲突
+    output wire ms_mem_wait //本级有指令且正在等待SRAM返回数据(data_ok)
 );
 
     wire [5:0] mem_excode;
@@ -42,7 +43,7 @@ module MEM_stage(
     wire         mem_we, gr_we,res_from_mem, load_op, load_signed;
     wire [1:0] mem_size ,mem_addr_offset;
     wire [4:0] dest;
-    wire [31:0] rkd_value, alu_result, ds_pc, sram_wdata;
+    wire [31:0] rkd_value, alu_result, ms_pc, sram_wdata;
     wire [3:0] sram_we;
     wire [7:0] sram_rdata_byte0, sram_rdata_byte1, sram_rdata_byte2, sram_rdata_byte3;  //字节选
     wire [15:0] sram_rdata_half0, sram_rdata_half1;  //半字选
@@ -62,6 +63,9 @@ module MEM_stage(
     assign ms_ready_go     = data_sram_data_ok || !(mem_we || load_op || res_from_mem);
     assign ms_allowin      = !mem_valid || ms_ready_go && ws_allowin || has_ex;
     assign ms_to_ws_valid  = mem_valid && ms_ready_go;
+    // 本级持有一条访存指令、但数据还没回来
+    // ID 应该视为 load use 而等待
+    assign ms_mem_wait     = mem_valid && !ms_ready_go;
 
     always @(posedge clk) begin
         if (reset || has_ex || ertn_flush || int_flush) begin
@@ -95,7 +99,7 @@ module MEM_stage(
             mem_we,  //写内存使能
             rkd_value,  //写内存数据
             alu_result,  //alu计算结果
-            ds_pc  //当前指令的pc,用于debug
+            ms_pc  //当前指令的pc,用于debug
             } = es_to_ms_bus_r;
 
     assign mem_addr_offset = alu_result[1:0];
@@ -137,6 +141,6 @@ module MEM_stage(
                             dest         ,  //[69:65]  写寄存器地址
                             res_from_mem ,
                             final_result ,  //[63:32]  写回数据(load/alu 已 mux)
-                            ds_pc           //[31: 0]  当前指令的pc, 用于debug
+                            ms_pc           //[31: 0]  当前指令的pc, 用于debug
                           };
 endmodule

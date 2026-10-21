@@ -23,6 +23,7 @@ module ID_stage(
     input wire  [38 : 0] ms_dest,
     input wire  es_to_ms_valid,
     input wire  ms_to_ws_valid,
+    input wire  ms_mem_wait,   //MEM级有访存指令但数据还没回来
     input wire  ws_to_rf_valid,
 
     output wire csr_re,
@@ -204,8 +205,11 @@ wire ws_match_rkd = ws_to_rf_valid && ws_to_rf_bus[37] && (ws_to_rf_bus[36:32] =
 
 reg [`FS_TO_DS_BUS_WD -1 :0] fs_to_ds_bus_r;
 
-wire es_load_hazard =  es_to_ms_valid && es_dest[38] && (es_match_rj || es_match_rkd);
-wire ms_load_hazard =  ms_to_ws_valid && ms_dest[38] && (ms_match_rj || ms_match_rkd);
+wire es_load_hazard = es_dest[38] && (es_match_rj || es_match_rkd);
+wire ms_match_rj_raw = (ms_dest[36:32] == rf_raddr1) && (rf_raddr1 != 5'd0);
+wire ms_match_rkd_raw = (ms_dest[36:32] == rf_raddr2) && (rf_raddr2 != 5'd0);
+// mem_valid = ms_mem_wait | ms_to_ws_valid：
+wire ms_load_hazard = (ms_mem_wait || ms_to_ws_valid) && ms_dest[38] && (ms_match_rj_raw || ms_match_rkd_raw);
 wire load_data_hazard = es_load_hazard || ms_load_hazard;
 wire es_csr_hazard;
 wire ms_csr_hazard;

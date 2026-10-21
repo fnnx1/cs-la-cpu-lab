@@ -69,6 +69,9 @@ module mycpu_top(
     wire [`WS_TO_RF_BUS_WD -1:0] ws_to_rf_bus;
     wire [`WS_TO_CSR_BUS_WD -1:0] ws_to_csr_bus;
 
+    wire        ms_mem_wait;   // MEM 正在等待 SRAM 数据
+
+
     // CSR冲突总线格式：{CSR写使能, CSR写地址}
     wire [12:0] es_csr_conflict_bus;
     wire [12:0] ms_csr_conflict_bus;
@@ -202,6 +205,7 @@ module mycpu_top(
         .ms_dest({ms_to_ws_bus[71],ms_to_ws_bus[70:65], ms_to_ws_bus[63:32]}),
         .es_to_ms_valid(es_to_ms_valid),
         .ms_to_ws_valid(ms_to_ws_valid),
+        .ms_mem_wait(ms_mem_wait),
         .ws_to_rf_valid(ws_valid),
         .has_ex(has_ex),
         .int_flush(int_flush),
@@ -262,7 +266,8 @@ module mycpu_top(
         .has_ex(has_ex),
         .int_flush(int_flush),
         .ertn_flush(ertn_flush),
-        .mem_ex(ms_ex)
+        .mem_ex(ms_ex),
+        .ms_mem_wait(ms_mem_wait)
     );
 
     WB_stage wb_stage(

@@ -69,7 +69,7 @@ module EX_stage(
     wire ex_gr_we;
     wire [4:0] dest;
     wire [31:0] alu_result;
-    wire [31:0] final_result;
+    wire [31:0] ex_result;
     wire [31:0] mul_result;
     wire        src1_is_pc;
     wire        src2_is_imm;
@@ -78,7 +78,7 @@ module EX_stage(
     wire [31:0] imm;
     wire [31:0] rj_value;
     wire [31:0] rkd_value;
-    wire [31:0] ds_pc;
+    wire [31:0] es_pc;
     wire        res_from_mem;
     wire [31:0] sram_wdata;
     wire [3:0] sram_we;
@@ -157,10 +157,10 @@ module EX_stage(
             imm,
             rj_value,
             rkd_value,
-            ds_pc,
+            es_pc,
             res_from_mem} = ds_to_es_bus_r;
 
-    assign alu_src1 = src1_is_pc  ? ds_pc[31:0] : rj_value;
+    assign alu_src1 = src1_is_pc  ? es_pc[31:0] : rj_value;
     assign alu_src2 = src2_is_imm ? imm : rkd_value;
 
 
@@ -217,14 +217,15 @@ module EX_stage(
     // 当内存访问阶段或写回阶段发生异常且store使能时，发生冲突
     assign exception_st_conflict = (ms_to_ws_valid && (ms_ex || ms_ertn) && mem_access) || (ws_to_rf_valid && (wb_ex || wb_ertn) && mem_access);
     // 下一级可以接收新数据时发送请求
-    assign data_sram_req  = ms_allowin && mem_access && !exception_st_conflict;
+    assign data_sram_req  = es_valid/*这里与pre-if不同，还需要本级有有效指令*/
+                        && ms_allowin && mem_access && !exception_st_conflict;
 
     assign data_sram_wr   = mem_we;
 
     assign sram_wdata = mem_size == `B ? {4{rkd_value[7:0]}} :
                         mem_size == `H ? {2{rkd_value[15:0]}} :
                         rkd_value;
-    assign sram_we    = mem_size == `B ? (alu_result[1:0] == 2'b00 ? 4'b0001 :
+    assign sram_we = mem_size == `B ? (alu_result[1:0] == 2'b00 ? 4'b0001 :
                                          alu_result[1:0] == 2'b01 ? 4'b0010 :
                                          alu_result[1:0] == 2'b10 ? 4'b0100 :
                                          4'b1000) :
@@ -236,7 +237,11 @@ module EX_stage(
 
     assign data_sram_addr  = alu_result;
     assign data_sram_wdata = sram_wdata;
-    assign data_sram_wstrb = (!is_ALE &&!exception_st_conflict && es_valid & mem_we) ? sram_we : 4'b0;
+    assign data_sram_wstrb = (!is_ALE &&!exception_st_conflict && es_valid && mem_we) ? sram_we : 4'b0000;
+    assign data_sram_size  = (load_op || res_from_mem )? 2'b10 :
+                            mem_size == `B ? 2'b00 :
+                            mem_size == `H ? 2'b01 :
+                            2'b10;
 
     assign mem_addr_offset = alu_result[1:0]; //内存地址的偏移量
 
@@ -252,13 +257,13 @@ module EX_stage(
     assign div_mod_result = div_signed ? (inst_div_w ? div_result_signed[63:32] : (inst_mod_w ? div_result_signed[31:0] : alu_result)) 
                         : (div_unsigned ? (inst_div_wu ? div_result_unsigned[63:32] : (inst_mod_wu ? div_result_unsigned[31:0] : alu_result)) : alu_result);
 
-    assign final_result =   csr_we ? _csr_rdata :
+    assign ex_result =   csr_we ? _csr_rdata :
                             inst_rdcntid_w ? _csr_rdata :
                             inst_rdcntvh_w ? Counter[63:32] :
                             inst_rdcntvl_w ? Counter[31:0] :
                             div_mod_result;
     //csrxchange交换逻辑
-    assign csr_wdata = csr_we ? (es_excode == `ECODE_SYS ? ds_pc + 4 : rkd_value) : 32'h0;
+    assign csr_wdata = csr_we ? (es_excode == `ECODE_SYS ? es_pc + 4 : rkd_value) : 32'h0;
     // es_to_ms_bus 总位宽 = 234 bit，最高32位为访存错误地址
     assign es_to_ms_bus = {
                         ex_badv,
@@ -280,7 +285,7 @@ module EX_stage(
 
                         mem_we       ,  //[ 96]     1 bit   写内存使能
                         rkd_value    ,  //[ 95: 64] 32 bit  写内存数据
-                        final_result   ,  //[ 63: 32] 32 bit  alu计算结果
-                        ds_pc           //[ 31:  0] 32 bit  当前指令的pc,用于debug
+                        ex_result   ,  //[ 63: 32] 32 bit  alu计算结果
+                        es_pc           //[ 31:  0] 32 bit  当前指令的pc,用于debug
                         };
 endmodule
