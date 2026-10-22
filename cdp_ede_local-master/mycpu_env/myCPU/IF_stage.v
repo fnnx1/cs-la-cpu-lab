@@ -48,8 +48,6 @@ module IF_stage(
 
     reg br_pending; // 待处理跳转
     reg [31:0] br_target_pending; // 待处理跳转地址
-    wire br_drop_next_inst; // br 时总是会有一条顺序指令正在读，应该丢弃
-
     wire br_active;
 
     wire [31:0] fs_inst; //fs阶段的inst和pc,往后传递
@@ -58,9 +56,12 @@ module IF_stage(
     reg [31:0] fs_inst_cache;
     reg fs_inst_cache_valid; // 缓存中的数据是否应该被使用
 
-    reg drop_next_inst; // 丢弃下一条指令，用于发生异常时
-
     wire any_flush = has_ex || int_flush || ertn_flush;
+
+    reg flush_pending; // 重定向目标尚未完成地址握手
+    reg [31:0] flush_pending_pc; // 暂存异常跳转目标
+    wire flush_active;
+    reg drop_next_inst; // 已取消的取指请求尚未返回，应当在返回时丢弃
 
     wire is_ADEF;
 
@@ -88,6 +89,7 @@ module IF_stage(
     assign seq_pc = fs_pc + 3'h4; //顺序
     assign next_pc = (has_ex || int_flush) ? ex_pc :
                     (ertn_flush) ? ertn_entry :
+                    (flush_pending) ? flush_pending_pc :
                     (br_taken)  ? br_target :
                     (br_pending) ? br_target_pending :
                     seq_pc;
@@ -96,31 +98,49 @@ module IF_stage(
     // fs_inst 和 fs_pc 应该是同级数据（之前这里是 next_pc)
     assign is_ADEF = fs_pc[1:0] != 2'b0;
 
+    assign flush_active = any_flush || flush_pending;
     // 异常处理
+    // 和下面的跳转逻辑几乎完全一致，或许可以合并
     always @(posedge clk) begin
         if (reset) begin
-            drop_next_inst <= 1'b0;
-        end else if (any_flush && (to_fs_valid || (!fs_allowin && !fs_ready_go))) begin
-            // 发生异常，且：
-            // 1. pre if 刚好发送请求并握手
-            // 或
-            // 2. (握手后) fs 在等待 data_ok
-            drop_next_inst <= 1'b1;
-        end else if (inst_sram_data_ok) begin
-            // 异常后第一条指令读出时，同步清掉丢弃信号
-            // 1. 如果没有出现丢弃，则无影响（本来就是0）
-            // 2. 如果出现了丢弃，则置0，下一条指令可以正常执行
-            drop_next_inst <= 1'b0;
+            flush_pending <= 1'b0;
+            flush_pending_pc <= 32'b0;
+        end else if (any_flush) begin
+            // 这里和书中的实现略有不同，改为了异常发生当拍不发送请求，之后达成条件才发送；
+            // 但协议与书中一致，都是等已经发送的请求返回后才发起新的请求。
+
+            // 异常发生时无条件置位，下次握手成功后清零
+            flush_pending <= 1'b1;
+            flush_pending_pc <= (has_ex || int_flush) ? ex_pc : ertn_entry;
+        end else if (to_fs_valid && fs_allowin) begin
+            // next pc 更新后首次握手成功
+            flush_pending <= 1'b0;
         end
     end
 
+    always @(posedge clk) begin
+        if (reset || inst_sram_data_ok) begin
+            drop_next_inst <= 1'b0;
+        end else if (any_flush || br_taken) begin
+            // 当拍 inst_sram_data_ok 没置位且收到了异常
+            //
+            // 这里学习了一下gpt的实现，与参考书略有不同，但比较优雅：
+            // 如果上次跳转还没处理又出现了中断，如果drop_next_inst还未清除，说明上次异常等待的那个废信号还没返回；
+            // 由于实现保证了“上次请求返回结果后，才能发起下次请求”，这里drop_next_inst就可以直接保持原状态，
+            // 其他部分保证 flush target 更新（等到可以发起req时，始终发最新的）即可。
+            drop_next_inst <= drop_next_inst // 前一次跳转没处理又发生异常
+                        || (fs_valid && !fs_inst_cache_valid);// 普通的首次异常
+        end
+    end
+    wire test_drop = fs_valid && !fs_inst_cache_valid;
     // 缓冲指令
     always @(posedge clk)begin
-        if(reset || any_flush)begin
+        if(reset || flush_active || br_active || drop_next_inst)begin
             fs_inst_cache <= 32'b0;
             fs_inst_cache_valid <= 1'b0;
         end else if (inst_sram_data_ok && !ds_allowin) begin
             // 当 ds 不允许进入但有新数据读出，帮其暂存
+            // 前一个 if 已经排除了异常、跳转和待丢弃的返回。
             fs_inst_cache <= inst_sram_rdata;
             fs_inst_cache_valid <= 1'b1;
         end else if (ds_allowin) begin
@@ -131,12 +151,12 @@ module IF_stage(
 
 
     //IF stage
-    // 指令已经读出或有有效缓冲
-    // 感觉ready_go更像是事务完成信号，不保证数据有效
-    assign fs_ready_go = inst_sram_data_ok || fs_inst_cache_valid;
+    // 待丢弃的返回只结束旧事务，不能作为本级的有效指令。
+    assign fs_ready_go = !drop_next_inst && (inst_sram_data_ok || fs_inst_cache_valid);
 
     // 允许进入，需要了解下一级是否可以进入目的是可以实现保持停顿
-    assign fs_allowin = !fs_valid || fs_ready_go && ds_allowin;
+    // 即使异常已清空 fs_valid，也要等待旧事务返回并丢弃后再接收新 PC。
+    assign fs_allowin = !drop_next_inst && (!fs_valid || fs_ready_go && ds_allowin);
 
     assign br_active = br_pending || br_taken;
     always @(posedge clk) begin
@@ -147,16 +167,17 @@ module IF_stage(
             br_pending <= 1'b1;
             br_target_pending <= br_target;
         end else if (to_fs_valid && fs_allowin) begin
+            // next pc 更新后首次握手成功
             br_pending <= 1'b0;
         end
     end
 
     // fs_valid 应该和可用的[正在取指/已取指]pc绑定
-    // 注意异常和跳转都有可能要丢弃最后一条指令
-    assign fs_to_ds_valid = fs_valid && fs_ready_go && !drop_next_inst && !br_active;
+    // 异常和跳转都要丢弃最后一条指令，异常跳转当拍 valid 还未来得及置，在这里组合逻辑临时屏蔽
+    assign fs_to_ds_valid = fs_valid && fs_ready_go && !any_flush && !br_taken;
 
     always@(posedge clk)begin
-        if(reset || any_flush)begin
+        if(reset || any_flush || br_taken)begin
             // 见手册，if stage异常处理的四种情况都要把fs_valid置0，
             // 所有流水级均应按此规律。
             // 之前的设计不涉及应该是因为固定单周期延迟内存 + pre if总是有效，
@@ -164,11 +185,11 @@ module IF_stage(
             // 异常的第一个时钟升沿那一拍fs直接就能拿到有效的数据（fs_pc和相应的指令数据）；
             // 引入总线后这一点不成立。
             // （个人理解：把与前级的分界缓冲寄存器当作本级“输入”，[x]s_valid表示该“输入”的数据有效）
+            //
+            // 省流：这里的 valid 表示 fs_pc 存在一条已经握手还未读出指令的 pc
+            // 异常或者跳转应该把旧请求直接取消，所以清 valid
             fs_valid <= 1'b0;
         end else if(fs_allowin)begin
-            // reset 或 flush 的下一周期开始传递前级的数据可用情况
-            // 这里 to_fs_valid 在第一次reset后几乎和 pre_if_ready_go 完全等效
-            // 表示取到的pc值有效（已经发出读请求）
             fs_valid <= to_fs_valid;
         end
     end
@@ -186,7 +207,8 @@ module IF_stage(
     // 当 ds 因 load-use 问题阻塞时这里也应阻塞
     // 因为引入总线sram后，!fs_valid 也可能为1，fs_allowin因此为1，
     // pre if会继续发出请求，导致读出跳转前的错误pc的指令
-    assign inst_sram_req = !reset && fs_allowin && !br_stall;
+    // 异常当拍不发请求，之后达成条件才发出请求
+    assign inst_sram_req = !reset && !any_flush && !br_taken && !br_stall && fs_allowin;
 
     assign inst_sram_addr = next_pc;
     assign inst_sram_wdata = 32'b0;

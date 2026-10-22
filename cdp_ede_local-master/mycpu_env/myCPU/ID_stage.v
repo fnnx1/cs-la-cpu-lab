@@ -481,7 +481,7 @@ assign br_taken = (  inst_beq  &&  rj_eq_rd
                   || inst_jirl
                   || inst_bl
                   || inst_b
-                  ) && ds_valid && ds_ready_go;
+                ) && ds_to_es_valid && es_allowin; // 指令在被后递时才应该单次触发跳转，之前的实现似乎有点问题
 assign br_target = (inst_beq || inst_bne || inst_blt || inst_bl || inst_b || inst_bge || inst_bltu || inst_bgeu) ? (ds_pc + br_offs) :
                                                    /*inst_jirl*/ (rj_value + jirl_offs);
 
