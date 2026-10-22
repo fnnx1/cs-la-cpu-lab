@@ -17,18 +17,17 @@ module WB_stage(
     output wire [ 4:0] debug_wb_rf_wnum,
     output wire [31:0] debug_wb_rf_wdata,
     output wire        ws_to_rf_valid,
+    output wire        ws_int, // 本级寄存的中断标记，仅在 ws_to_rf_valid 时有效
 
     input wire has_ex,  //无条件例外
     input wire int_flush,
     input wire ertn_flush
-    
 );
 
     //异常处理
     wire ws_ex;
     wire [5:0] ws_excode;
     wire [8:0] ws_esubcode;
-    
     wire [11:0] csr_write_num;
     wire [31:0] csr_wmask;
     wire csr_ertn;
@@ -41,18 +40,18 @@ module WB_stage(
     wire [31:0] wb_vaddr;
 
     assign wb_pc = ms_to_ws_bus_r[31:0];
-    assign wb_vaddr = ms_to_ws_bus_r[`MS_TO_WS_BUS_WD-1:`MS_TO_WS_BUS_WD-32];
+    assign ws_int = ms_to_ws_bus_r[198];
+    assign wb_vaddr = ms_to_ws_bus_r[197:166];
     assign ws_ready_go     = 1'b1;
     //最后一级, 没有下游 allowin
     assign ws_allowin      = !ws_valid || ws_ready_go;
-   
     // ws_to_rf_bus 总位宽 = 1+6+9+1+1+5+32 = 55 bit
     assign ws_to_rf_bus = {
                         ws_ex,          //[54]
                         ws_excode,      //[53:48]
                         ws_esubcode,    //[47:39]
                         ws_valid && ms_to_ws_bus_r[71],  //[38]    load标志
-                        !ws_ex && ws_valid && ms_to_ws_bus_r[70],  //[37]    写寄存器使能
+                        !ws_ex && !ws_int && ws_valid && ms_to_ws_bus_r[70],  //[37]    写寄存器使能
                         ms_to_ws_bus_r[69:65],           //[36:32] 写寄存器地址
                         ms_to_ws_bus_r[63:32]//[31: 0] 写回数据
                         };
@@ -67,10 +66,11 @@ module WB_stage(
                             csr_wdata       //[31:0]
                             };
 
-    assign ws_ex = ws_valid && ms_to_ws_bus_r[87];
-    assign ws_excode = ws_valid ? ms_to_ws_bus_r[86:81] : 6'b0;
-    assign ws_esubcode = ws_valid ? ms_to_ws_bus_r[80:72] : 9'b0;
-    
+    // 这里约定中断比异常优先级更高
+    assign ws_ex = ws_valid && !ws_int && ms_to_ws_bus_r[87];
+    assign ws_excode = ws_ex ? ms_to_ws_bus_r[86:81] : 6'b0;
+    assign ws_esubcode = ws_ex ? ms_to_ws_bus_r[80:72] : 9'b0;
+
     assign csr_we = ws_valid && ms_to_ws_bus_r[120];
     assign csr_ertn = ms_to_ws_bus_r[165];
     assign csr_wdata = ms_to_ws_bus_r[119:88];
@@ -79,7 +79,7 @@ module WB_stage(
     assign ws_to_rf_valid = ws_valid;
     // debug info generate
     assign debug_wb_pc       = ws_valid ? ms_to_ws_bus_r[31:0] : 32'b0;
-    assign debug_wb_rf_we    = {4{!ws_ex && ws_valid && ms_to_ws_bus_r[70]}};
+    assign debug_wb_rf_we    = {4{!ws_ex && !ws_int && ws_valid && ms_to_ws_bus_r[70]}};
     assign debug_wb_rf_wnum  = ws_valid ? ms_to_ws_bus_r[69:65] : 5'b0;
     assign debug_wb_rf_wdata = ws_valid ? ws_to_rf_bus[31:0] : 32'b0;
     always @(posedge clk) begin

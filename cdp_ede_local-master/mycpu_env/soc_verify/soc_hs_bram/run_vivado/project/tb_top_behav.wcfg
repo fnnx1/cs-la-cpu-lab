@@ -11,18 +11,18 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="6965927900000fs"></ZoomStartTime>
-      <ZoomEndTime time="6966101400001fs"></ZoomEndTime>
-      <Cursor1Time time="6965975000000fs"></Cursor1Time>
+      <ZoomStartTime time="7598818333333fs"></ZoomStartTime>
+      <ZoomEndTime time="7612818333334fs"></ZoomEndTime>
+      <Cursor1Time time="7610485000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="266"></NameColumnWidth>
       <ValueColumnWidth column_width="125"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="66" />
+   <WVObjectSize size="22" />
    <wave_markers>
       <marker label="" time="2145000000" />
-      <marker label="" time="6966083667000" />
+      <marker label="" time="7317815000000" />
    </wave_markers>
    <wvobject type="logic" fp_name="/tb_top/resetn">
       <obj_property name="ElementShortName">resetn</obj_property>
@@ -60,17 +60,49 @@
       <obj_property name="ElementShortName">ref_wb_pc[31:0]</obj_property>
       <obj_property name="ObjectShortName">ref_wb_pc[31:0]</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/wb_stage/ws_ex">
+      <obj_property name="ElementShortName">ws_ex</obj_property>
+      <obj_property name="ObjectShortName">ws_ex</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/mem_stage/ms_pc">
       <obj_property name="ElementShortName">ms_pc[31:0]</obj_property>
       <obj_property name="ObjectShortName">ms_pc[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/mem_stage/mem_ex">
+      <obj_property name="ElementShortName">mem_ex</obj_property>
+      <obj_property name="ObjectShortName">mem_ex</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/ex_stage/es_pc">
       <obj_property name="ElementShortName">es_pc[31:0]</obj_property>
       <obj_property name="ObjectShortName">es_pc[31:0]</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/ex_stage/es_ex">
+      <obj_property name="ElementShortName">es_ex</obj_property>
+      <obj_property name="ObjectShortName">es_ex</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/id_stage/ds_inst">
+      <obj_property name="ElementShortName">ds_inst[31:0]</obj_property>
+      <obj_property name="ObjectShortName">ds_inst[31:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/id_stage/ds_pc">
       <obj_property name="ElementShortName">ds_pc[31:0]</obj_property>
       <obj_property name="ObjectShortName">ds_pc[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/id_stage/unsupport_inst">
+      <obj_property name="ElementShortName">unsupport_inst</obj_property>
+      <obj_property name="ObjectShortName">unsupport_inst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/id_stage/ds_valid">
+      <obj_property name="ElementShortName">ds_valid</obj_property>
+      <obj_property name="ObjectShortName">ds_valid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/id_stage/fs_to_ds_valid">
+      <obj_property name="ElementShortName">fs_to_ds_valid</obj_property>
+      <obj_property name="ObjectShortName">fs_to_ds_valid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/id_stage/ds_ex">
+      <obj_property name="ElementShortName">ds_ex</obj_property>
+      <obj_property name="ObjectShortName">ds_ex</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/if_stage/fs_pc">
       <obj_property name="ElementShortName">fs_pc[31:0]</obj_property>
@@ -79,213 +111,5 @@
    <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/int_flush">
       <obj_property name="ElementShortName">int_flush</obj_property>
       <obj_property name="ObjectShortName">int_flush</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/clk">
-      <obj_property name="ElementShortName">clk</obj_property>
-      <obj_property name="ObjectShortName">clk</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/reset">
-      <obj_property name="ElementShortName">reset</obj_property>
-      <obj_property name="ObjectShortName">reset</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_re">
-      <obj_property name="ElementShortName">csr_re</obj_property>
-      <obj_property name="ObjectShortName">csr_re</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_raddr">
-      <obj_property name="ElementShortName">csr_raddr[11:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_raddr[11:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_waddr">
-      <obj_property name="ElementShortName">csr_waddr[11:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_waddr[11:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_we">
-      <obj_property name="ElementShortName">csr_we</obj_property>
-      <obj_property name="ObjectShortName">csr_we</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_wmask">
-      <obj_property name="ElementShortName">csr_wmask[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_wmask[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_wvalue">
-      <obj_property name="ElementShortName">csr_wvalue[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_wvalue[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_rvalue">
-      <obj_property name="ElementShortName">csr_rvalue[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_rvalue[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/ex_entry">
-      <obj_property name="ElementShortName">ex_entry[31:0]</obj_property>
-      <obj_property name="ObjectShortName">ex_entry[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/ertn_entry">
-      <obj_property name="ElementShortName">ertn_entry[31:0]</obj_property>
-      <obj_property name="ObjectShortName">ertn_entry[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/has_ex">
-      <obj_property name="ElementShortName">has_ex</obj_property>
-      <obj_property name="ObjectShortName">has_ex</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/has_int">
-      <obj_property name="ElementShortName">has_int</obj_property>
-      <obj_property name="ObjectShortName">has_int</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/ertn_flush">
-      <obj_property name="ElementShortName">ertn_flush</obj_property>
-      <obj_property name="ObjectShortName">ertn_flush</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/wb_ex">
-      <obj_property name="ElementShortName">wb_ex</obj_property>
-      <obj_property name="ObjectShortName">wb_ex</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/wb_ecode">
-      <obj_property name="ElementShortName">wb_ecode[5:0]</obj_property>
-      <obj_property name="ObjectShortName">wb_ecode[5:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/wb_esubcode">
-      <obj_property name="ElementShortName">wb_esubcode[8:0]</obj_property>
-      <obj_property name="ObjectShortName">wb_esubcode[8:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/wb_pc">
-      <obj_property name="ElementShortName">wb_pc[31:0]</obj_property>
-      <obj_property name="ObjectShortName">wb_pc[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/wb_vaddr">
-      <obj_property name="ElementShortName">wb_vaddr[31:0]</obj_property>
-      <obj_property name="ObjectShortName">wb_vaddr[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/hw_int_in">
-      <obj_property name="ElementShortName">hw_int_in[7:0]</obj_property>
-      <obj_property name="ObjectShortName">hw_int_in[7:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/ipi_int_in">
-      <obj_property name="ElementShortName">ipi_int_in</obj_property>
-      <obj_property name="ObjectShortName">ipi_int_in</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/coreid_in">
-      <obj_property name="ElementShortName">coreid_in</obj_property>
-      <obj_property name="ObjectShortName">coreid_in</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_ticlr_clr">
-      <obj_property name="ElementShortName">csr_ticlr_clr</obj_property>
-      <obj_property name="ObjectShortName">csr_ticlr_clr</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_crmd_plv">
-      <obj_property name="ElementShortName">csr_crmd_plv[1:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_crmd_plv[1:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_crmd_ie">
-      <obj_property name="ElementShortName">csr_crmd_ie</obj_property>
-      <obj_property name="ObjectShortName">csr_crmd_ie</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_crmd_da">
-      <obj_property name="ElementShortName">csr_crmd_da</obj_property>
-      <obj_property name="ObjectShortName">csr_crmd_da</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_crmd_pg">
-      <obj_property name="ElementShortName">csr_crmd_pg</obj_property>
-      <obj_property name="ObjectShortName">csr_crmd_pg</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_crmd_datf">
-      <obj_property name="ElementShortName">csr_crmd_datf[1:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_crmd_datf[1:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_crmd_datm">
-      <obj_property name="ElementShortName">csr_crmd_datm[1:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_crmd_datm[1:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_prmd_pplv">
-      <obj_property name="ElementShortName">csr_prmd_pplv[1:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_prmd_pplv[1:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_prmd_pie">
-      <obj_property name="ElementShortName">csr_prmd_pie</obj_property>
-      <obj_property name="ObjectShortName">csr_prmd_pie</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_ecfg_lie">
-      <obj_property name="ElementShortName">csr_ecfg_lie[12:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_ecfg_lie[12:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_estat_is">
-      <obj_property name="ElementShortName">csr_estat_is[12:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_estat_is[12:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_estat_ecode">
-      <obj_property name="ElementShortName">csr_estat_ecode[5:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_estat_ecode[5:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_estat_esubcode">
-      <obj_property name="ElementShortName">csr_estat_esubcode[8:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_estat_esubcode[8:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/timer_cnt">
-      <obj_property name="ElementShortName">timer_cnt[31:0]</obj_property>
-      <obj_property name="ObjectShortName">timer_cnt[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_era_pc">
-      <obj_property name="ElementShortName">csr_era_pc[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_era_pc[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_badv_vaddr">
-      <obj_property name="ElementShortName">csr_badv_vaddr[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_badv_vaddr[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_eentry_va">
-      <obj_property name="ElementShortName">csr_eentry_va[25:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_eentry_va[25:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_save0_data">
-      <obj_property name="ElementShortName">csr_save0_data[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_save0_data[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_save1_data">
-      <obj_property name="ElementShortName">csr_save1_data[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_save1_data[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_save2_data">
-      <obj_property name="ElementShortName">csr_save2_data[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_save2_data[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_save3_data">
-      <obj_property name="ElementShortName">csr_save3_data[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_save3_data[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_tid">
-      <obj_property name="ElementShortName">csr_tid[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_tid[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_tcfg_en">
-      <obj_property name="ElementShortName">csr_tcfg_en</obj_property>
-      <obj_property name="ObjectShortName">csr_tcfg_en</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/csr_tcfg_period">
-      <obj_property name="ElementShortName">csr_tcfg_period</obj_property>
-      <obj_property name="ObjectShortName">csr_tcfg_period</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_tcfg_initval">
-      <obj_property name="ElementShortName">csr_tcfg_initval[29:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_tcfg_initval[29:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_tval_timeval">
-      <obj_property name="ElementShortName">csr_tval_timeval[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_tval_timeval[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/tcfg_next_value">
-      <obj_property name="ElementShortName">tcfg_next_value[31:0]</obj_property>
-      <obj_property name="ObjectShortName">tcfg_next_value[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_tval">
-      <obj_property name="ElementShortName">csr_tval[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_tval[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_top/soc_lite/cpu/_csr/csr_rdata">
-      <obj_property name="ElementShortName">csr_rdata[31:0]</obj_property>
-      <obj_property name="ObjectShortName">csr_rdata[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_top/soc_lite/cpu/_csr/wb_ex_addr_err">
-      <obj_property name="ElementShortName">wb_ex_addr_err</obj_property>
-      <obj_property name="ObjectShortName">wb_ex_addr_err</obj_property>
    </wvobject>
 </wave_config>

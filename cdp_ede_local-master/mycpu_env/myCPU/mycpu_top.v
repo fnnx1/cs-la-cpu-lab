@@ -70,6 +70,7 @@ module mycpu_top(
     wire [`WS_TO_CSR_BUS_WD -1:0] ws_to_csr_bus;
 
     wire        ms_mem_wait;   // MEM 正在等待 SRAM 数据
+    wire        ds_int, es_int, ms_int, ws_int; // 各级中断标记，使用时结合本级有效信号
 
 
     // CSR冲突总线格式：{CSR写使能, CSR写地址}
@@ -86,11 +87,16 @@ module mycpu_top(
     wire [31:0] csr_rvalue; //读出值
     wire        wb_csr_we;
 
-    wire [31:0] ex_entry;   //异常入口地址 
+    wire [31:0] ex_entry;   //异常入口地址
     wire        has_ex;    //无条件例外
-    wire        has_int; 
-    reg int_flush_p;
+    wire        has_int;
     wire int_flush;
+
+    // 这里“中断插入到有效指令”采用类似 axi 的握手机制
+    wire int_ok; // 中断已被附着到有效指令
+    reg int_pending; // 收到中断但尚无指令接受其附着
+    reg int_r;
+
     wire        ertn_flush; //异常返回刷新信号
     wire [31:0] ertn_entry;
     wire        wb_ex;      //写回阶段异常信号
@@ -108,16 +114,22 @@ module mycpu_top(
     assign ms_csr_conflict_bus = {ms_to_ws_bus[120], ms_to_ws_bus[164:153]};
     assign ws_csr_conflict_bus = {ws_to_csr_bus[32], ws_to_csr_bus[76:65]};
 
-    //触发器，防止has_int持久刷新
-    assign int_flush = !int_flush_p && has_int;
+    // 中断处理逻辑
     always @(posedge clk) begin
         if (reset) begin
-            int_flush_p <= 1'b0;
+            int_pending <= 1'b0;
+            int_r <= 1'b0;
+        end else if (has_int && !int_r) begin
+            // 中断升沿设置 pending 标志
+            int_pending <= 1'b1;
+        end else if (int_ok) begin
+            // 中断已被附着到有效指令，清除 pending 标志
+            int_pending <= 1'b0;
         end
-        else begin
-            int_flush_p <= has_int;
-        end
+        int_r <= has_int;
     end
+
+    assign int_flush = ws_int && ws_valid;
 
     assign {ertn_flush, csr_waddr, csr_wmask, wb_csr_we,
             csr_wvalue} = ws_to_csr_bus;
@@ -134,7 +146,7 @@ module mycpu_top(
         .clk(clk),
         .reset(reset),
         .csr_re(csr_re),
-        .csr_raddr(csr_raddr), 
+        .csr_raddr(csr_raddr),
         .csr_waddr(csr_waddr),
         .csr_we(csr_we),
         .csr_wmask(csr_wmask),
@@ -207,9 +219,12 @@ module mycpu_top(
         .ms_to_ws_valid(ms_to_ws_valid),
         .ms_mem_wait(ms_mem_wait),
         .ws_to_rf_valid(ws_valid),
-        .has_ex(has_ex),
+        .int_req(int_pending),
+        .int_ok(int_ok),
+        .ds_int(ds_int),
         .int_flush(int_flush),
         .ertn_flush(ertn_flush),
+        .has_ex(has_ex),
         .es_csr_conflict_bus(es_csr_conflict_bus),
         .ms_csr_conflict_bus(ms_csr_conflict_bus),
         .ws_csr_conflict_bus(ws_csr_conflict_bus)
@@ -227,6 +242,7 @@ module mycpu_top(
         //to ms stage
         .es_to_ms_valid(es_to_ms_valid),  //告知下一级数据是否有效
         .es_to_ms_bus(es_to_ms_bus),       //下一级缓冲区
+        .es_int(es_int),
         // data sram request interface
         .data_sram_req(data_sram_req),
         .data_sram_wr(data_sram_wr),
@@ -238,9 +254,11 @@ module mycpu_top(
         .int_flush(int_flush),
         .ertn_flush(ertn_flush),
         .ms_ex(ms_ex),
+        .ms_int(ms_int),
         .ms_ertn(ms_ertn),
         .ms_to_ws_valid(ms_to_ws_valid),
         .wb_ex(wb_ex),
+        .ws_int(ws_int),
         .wb_ertn(wb_ertn),
         .ws_to_rf_valid(ws_valid),
         .has_ex(has_ex)
@@ -267,6 +285,7 @@ module mycpu_top(
         .int_flush(int_flush),
         .ertn_flush(ertn_flush),
         .mem_ex(ms_ex),
+        .ms_int(ms_int),
         .ms_mem_wait(ms_mem_wait)
     );
 
@@ -287,6 +306,7 @@ module mycpu_top(
         .debug_wb_rf_wnum(debug_wb_rf_wnum),
         .debug_wb_rf_wdata(debug_wb_rf_wdata),
         .ws_to_rf_valid(ws_valid),
+        .ws_int(ws_int),
         .has_ex(has_ex),
         .int_flush(int_flush),
         .ertn_flush(ertn_flush)

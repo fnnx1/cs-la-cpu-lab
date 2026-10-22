@@ -12,6 +12,7 @@ module EX_stage(
     //to ms stage
     output wire        es_to_ms_valid,  //告知下一级数据是否有效
     output wire [`ES_TO_MS_BUS_WD -1 :0] es_to_ms_bus,  //下一级缓冲区
+    output wire        es_int, // 本级寄存的中断标记，仅在 es_valid 时有效
     // inst sram interface
     output wire        data_sram_req,
     output wire        data_sram_wr,
@@ -28,9 +29,11 @@ module EX_stage(
     //处理异常和访存的冲突
     input wire         ms_to_ws_valid,
     input wire         ms_ex,       //ms阶段的异常信号
+    input wire         ms_int,      //ms阶段的中断标记
     input wire         ms_ertn,     //ms阶段的ertn信号
     input wire         ws_to_rf_valid,
     input wire         wb_ex,
+    input wire         ws_int,      //ws阶段的中断标记
     input wire         wb_ertn
 );
     wire inst_rdcntvh_w;
@@ -128,6 +131,7 @@ module EX_stage(
     end
 
     assign {
+            es_int,
             inst_rdcntvh_w,
             inst_rdcntvl_w,
             Counter,
@@ -214,8 +218,9 @@ module EX_stage(
 
     assign mem_access = (mem_we | res_from_mem | load_op);
 
-    // 当内存访问阶段或写回阶段发生异常且store使能时，发生冲突
-    assign exception_st_conflict = (ms_to_ws_valid && (ms_ex || ms_ertn) && mem_access) || (ws_to_rf_valid && (wb_ex || wb_ertn) && mem_access);
+    // 老指令携带异常、中断或 ertn 时，阻止本级年轻指令发起访存。
+    assign exception_st_conflict = (ms_to_ws_valid && (ms_ex || ms_int || ms_ertn) && mem_access)
+                                || (ws_to_rf_valid && (wb_ex || ws_int || wb_ertn) && mem_access);
     // 下一级可以接收新数据时发送请求
     assign data_sram_req  = es_valid/*这里与pre-if不同，还需要本级有有效指令*/
                         && ms_allowin && mem_access && !exception_st_conflict;
@@ -237,7 +242,8 @@ module EX_stage(
 
     assign data_sram_addr  = alu_result;
     assign data_sram_wdata = sram_wdata;
-    assign data_sram_wstrb = (!is_ALE &&!exception_st_conflict && es_valid && mem_we) ? sram_we : 4'b0000;
+    // 本条中断指令保留访存握手和返回流程，但不写入任何字节。
+    assign data_sram_wstrb = (!is_ALE && !es_int && !exception_st_conflict && es_valid && mem_we) ? sram_we : 4'b0000;
     assign data_sram_size  = (load_op || res_from_mem )? 2'b10 :
                             mem_size == `B ? 2'b00 :
                             mem_size == `H ? 2'b01 :
@@ -264,9 +270,10 @@ module EX_stage(
                             div_mod_result;
     //csrxchange交换逻辑
     assign csr_wdata = csr_we ? (es_excode == `ECODE_SYS ? es_pc + 4 : rkd_value) : 32'h0;
-    // es_to_ms_bus 总位宽 = 234 bit，最高32位为访存错误地址
+    // es_to_ms_bus 总位宽 = 235 bit，最高位为中断标记
     assign es_to_ms_bus = {
-                        ex_badv,
+                        es_int,        //[234] 中断标记
+                        ex_badv,       //[233:202] 访存错误地址
                         csr_ertn,      //[201]      1 bit
                         csr_write_num ,  //[200:189] 12 bit  CSR写地址
                         csr_wmask    ,  //[188:157] 32 bit  CSR写掩码
