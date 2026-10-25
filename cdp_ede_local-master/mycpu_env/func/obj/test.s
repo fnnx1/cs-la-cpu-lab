@@ -9,7 +9,7 @@ Disassembly of section .text:
 kernel_entry():
 1c000000:	02bffc0c 	addi.w	$r12,$r0,-1(0xfff)
 1c000004:	02bffc0c 	addi.w	$r12,$r0,-1(0xfff)
-1c000008:	50fff800 	b	65528(0xfff8) # 1c010000 <locate>f
+1c000008:	50fff800 	b	65528(0xfff8) # 1c010000 <locate>
 1c00000c:	1500000c 	lu12i.w	$r12,-524288(0x80000)
 1c000010:	028005ad 	addi.w	$r13,$r13,1(0x1)
 1c000014:	0015018e 	move	$r14,$r12
