@@ -30,6 +30,10 @@ module ID_stage(
     output wire [11:0] csr_raddr,
     input  wire [31:0] csr_rdata,
 
+    input wire int_req, // 待插到指令上的中断
+    output wire int_ok, // 中断请求本拍被接受
+    output wire ds_int, // 本拍交付到 EX 的中断标记
+
     input wire has_ex,  //无条件例外
     input wire int_flush,
     input wire ertn_flush,
@@ -325,7 +329,7 @@ assign inst_rdcntid_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] 
 assign inst_rdcntvl_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h0] & op_14_10_d[5'h18] & op_9_5_d[5'h0];
 assign inst_rdcntvh_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h0] & op_14_10_d[5'h19] & op_9_5_d[5'h0];
 
-assign unsupport_inst = ds_valid &&fs_to_ds_valid && !(inst_add_w | inst_addi_w | inst_ld_w | inst_ld_b | inst_st_w | inst_st_b | inst_st_h
+assign unsupport_inst = ds_valid && !(inst_add_w | inst_addi_w | inst_ld_w | inst_ld_b | inst_st_w | inst_st_b | inst_st_h
                         | inst_jirl | inst_bl | inst_b | inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu
                         | inst_pcaddu12i | inst_ld_h | inst_ld_bu | inst_ld_hu
                         | inst_sub_w | inst_slt | inst_slti | inst_sltu | inst_sltui
@@ -481,7 +485,7 @@ assign br_taken = (  inst_beq  &&  rj_eq_rd
                   || inst_jirl
                   || inst_bl
                   || inst_b
-                ) && ds_to_es_valid && es_allowin; // 指令在被后递时才应该单次触发跳转，之前的实现似乎有点问题
+                ) && ds_to_es_valid && es_allowin && !ds_int; // 指令在被后递时才应该单次触发跳转，之前的实现似乎有点问题
 assign br_target = (inst_beq || inst_bne || inst_blt || inst_bl || inst_b || inst_bge || inst_bltu || inst_bgeu) ? (ds_pc + br_offs) :
                                                    /*inst_jirl*/ (rj_value + jirl_offs);
 
@@ -494,8 +498,9 @@ assign {
         ds_inst,
         ds_pc} = fs_to_ds_bus_r;
 
-// ds_to_es_bus 总位宽 = 323 bit
+// ds_to_es_bus 总位宽 = 324 bit，最高位为中断标记
 assign ds_to_es_bus = {
+                        ds_int,         //[323]      1 bit
                         inst_rdcntvh_w, //[322]      1 bit
                         inst_rdcntvl_w, //[321]      1 bit
                         Counter,        //[320:257] 64 bit
@@ -529,12 +534,15 @@ assign ds_to_es_bus = {
                         res_from_mem    //[  0]      1 bit
                       };
 
+
+assign ds_int = int_req && ds_to_es_valid && es_allowin;
+assign int_ok = ds_int;
+
 assign es_csr_hazard = es_to_ms_valid && es_csr_conflict_bus[12] && (es_csr_conflict_bus[11:0] == csr_write_num);
 assign ms_csr_hazard = ms_to_ws_valid && ms_csr_conflict_bus[12] && (ms_csr_conflict_bus[11:0] == csr_write_num);
 assign ws_csr_hazard = ws_to_rf_valid && ws_csr_conflict_bus[12] && (ws_csr_conflict_bus[11:0] == csr_write_num);
 //ex8_obj中有个测试会在syscall后几条指令触发一个load_use，导致会置ds_ready_go为0，使得取指也暂停，
 assign ds_ready_go = reset || (!load_data_hazard && !es_csr_hazard && !ms_csr_hazard && !ws_csr_hazard) || int_flush || has_ex || ertn_flush;
-
 // 是否是写指令，且是否寄存器值相等
 assign ds_allowin      = !ds_valid || ds_ready_go && es_allowin;
 assign ds_to_es_valid  = ds_valid && ds_ready_go && !int_flush;

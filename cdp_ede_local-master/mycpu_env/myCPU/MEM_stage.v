@@ -21,6 +21,7 @@ module MEM_stage(
     input  wire ertn_flush,
 
     output wire mem_ex, //用于指示MEM阶段是否发生异常/或有异常指令，用于处理精确异常中访存的冲突
+    output wire ms_int, // 本级寄存的中断标记，仅在 mem_valid 时有效
     output wire ms_mem_wait //本级有指令且正在等待SRAM返回数据(data_ok)
 );
 
@@ -79,6 +80,7 @@ module MEM_stage(
         end
     end
     assign {
+            ms_int,
             ex_badv,
             csr_ertn,
             csr_write_num,
@@ -124,9 +126,10 @@ module MEM_stage(
                         data_sram_rdata;
 
 
-    // ms_to_ws_bus 总位宽 = 198 bit，最高32位为访存错误地址
+    // ms_to_ws_bus 总位宽 = 199 bit，最高位为中断标记
     assign final_result = (res_from_mem | load_op) ? sram_rdata : alu_result;
     assign ms_to_ws_bus = {
+                            ms_int,        //[198] 中断标记
                             ex_badv,       //[197:166] 访存错误地址
                             csr_ertn,      //[165]      1 bit
                             csr_write_num ,  //[164:153] 12 bit  CSR写地址
