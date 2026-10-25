@@ -1,4 +1,4 @@
-//! axi cpu
+//! AXI CPU wrapper: CPU core + SRAM-to-AXI bridge
 
 module mycpu_top(
     input  wire        aclk,
@@ -57,40 +57,121 @@ module mycpu_top(
     output wire [31:0] debug_wb_rf_wdata
 );
 
-sram_axi_bridge bridge(
-    .clk            (aclk           )
+    // insr
+    wire        cpu_inst_req;
+    wire        cpu_inst_wr;
+    wire [1 :0] cpu_inst_size;
+    wire [3 :0] cpu_inst_wstrb;
+    wire [31:0] cpu_inst_addr;
+    wire [31:0] cpu_inst_wdata;
+    wire        cpu_inst_addr_ok;
+    wire        cpu_inst_data_ok;
+    wire [31:0] cpu_inst_rdata;
+
+    // data
+    wire        cpu_data_req;
+    wire        cpu_data_wr;
+    wire [1 :0] cpu_data_size;
+    wire [3 :0] cpu_data_wstrb;
+    wire [31:0] cpu_data_addr;
+    wire [31:0] cpu_data_wdata;
+    wire        cpu_data_addr_ok;
+    wire        cpu_data_data_ok;
+    wire [31:0] cpu_data_rdata;
+
+    mycpu_sram u_cpu(
+        .clk               (aclk             ),
+        .resetn            (aresetn          ),
+
+        .inst_sram_req     (cpu_inst_req     ),
+        .inst_sram_wr      (cpu_inst_wr      ),
+        .inst_sram_size    (cpu_inst_size    ),
+        .inst_sram_wstrb   (cpu_inst_wstrb   ),
+        .inst_sram_addr    (cpu_inst_addr    ),
+        .inst_sram_wdata   (cpu_inst_wdata   ),
+        .inst_sram_addr_ok (cpu_inst_addr_ok ),
+        .inst_sram_data_ok (cpu_inst_data_ok ),
+        .inst_sram_rdata   (cpu_inst_rdata   ),
+
+        .data_sram_req     (cpu_data_req     ),
+        .data_sram_wr      (cpu_data_wr      ),
+        .data_sram_size    (cpu_data_size    ),
+        .data_sram_wstrb   (cpu_data_wstrb   ),
+        .data_sram_addr    (cpu_data_addr    ),
+        .data_sram_wdata   (cpu_data_wdata   ),
+        .data_sram_addr_ok (cpu_data_addr_ok ),
+        .data_sram_data_ok (cpu_data_data_ok ),
+        .data_sram_rdata   (cpu_data_rdata   ),
+
+        .debug_wb_pc       (debug_wb_pc      ),
+        .debug_wb_rf_we    (debug_wb_rf_we   ),
+        .debug_wb_rf_wnum  (debug_wb_rf_wnum ),
+        .debug_wb_rf_wdata (debug_wb_rf_wdata)
 );
 
-mycpu_top cpu(
-    .clk              (cpu_clk   ),
-    .resetn           (cpu_resetn),  //low active
+    sram_axi_bridge u_bridge(
+        .clk               (aclk             ),
+        .resetn            (aresetn          ),
 
-    .inst_sram_req    (cpu_inst_req    ),
-    .inst_sram_wr     (cpu_inst_wr     ),
-    .inst_sram_size   (cpu_inst_size   ),
-    .inst_sram_wstrb  (cpu_inst_wstrb  ),
-    .inst_sram_addr   (cpu_inst_addr   ),
-    .inst_sram_wdata  (cpu_inst_wdata  ),
-    .inst_sram_addr_ok(cpu_inst_addr_ok),
-    .inst_sram_data_ok(cpu_inst_data_ok),
-    .inst_sram_rdata  (cpu_inst_rdata  ),
-    
-    .data_sram_req    (cpu_data_req    ),
-    .data_sram_wr     (cpu_data_wr     ),
-    .data_sram_size   (cpu_data_size   ),
-    .data_sram_wstrb  (cpu_data_wstrb  ),
-    .data_sram_addr   (cpu_data_addr   ),
-    .data_sram_wdata  (cpu_data_wdata  ),
-    .data_sram_addr_ok(cpu_data_addr_ok),
-    .data_sram_data_ok(cpu_data_data_ok),
-    .data_sram_rdata  (cpu_data_rdata  ),
+        .inst_sram_req     (cpu_inst_req     ),
+        .inst_sram_wr      (cpu_inst_wr      ),
+        .inst_sram_size    (cpu_inst_size    ),
+        .inst_sram_wstrb   (cpu_inst_wstrb   ),
+        .inst_sram_addr    (cpu_inst_addr    ),
+        .inst_sram_wdata   (cpu_inst_wdata   ),
+        .inst_sram_addr_ok (cpu_inst_addr_ok ),
+        .inst_sram_data_ok (cpu_inst_data_ok ),
+        .inst_sram_rdata   (cpu_inst_rdata   ),
 
-    //debug interface
-    .debug_wb_pc      (debug_wb_pc      ),
-    .debug_wb_rf_we   (debug_wb_rf_we   ),
-    .debug_wb_rf_wnum (debug_wb_rf_wnum ),
-    .debug_wb_rf_wdata(debug_wb_rf_wdata)
-);
+        .data_sram_req     (cpu_data_req     ),
+        .data_sram_wr      (cpu_data_wr      ),
+        .data_sram_size    (cpu_data_size    ),
+        .data_sram_wstrb   (cpu_data_wstrb   ),
+        .data_sram_addr    (cpu_data_addr    ),
+        .data_sram_wdata   (cpu_data_wdata   ),
+        .data_sram_addr_ok (cpu_data_addr_ok ),
+        .data_sram_data_ok (cpu_data_data_ok ),
+        .data_sram_rdata   (cpu_data_rdata   ),
 
+        .arid              (arid             ),
+        .araddr            (araddr           ),
+        .arlen             (arlen            ),
+        .arsize            (arsize           ),
+        .arburst           (arburst          ),
+        .arlock            (arlock           ),
+        .arcache           (arcache          ),
+        .arprot            (arprot           ),
+        .arvalid           (arvalid          ),
+        .arready           (arready          ),
 
+        .rid               (rid              ),
+        .rdata             (rdata            ),
+        .rresp             (rresp            ),
+        .rlast             (rlast            ),
+        .rvalid            (rvalid           ),
+        .rready            (rready           ),
+
+        .awid              (awid             ),
+        .awaddr            (awaddr           ),
+        .awlen             (awlen            ),
+        .awsize            (awsize           ),
+        .awburst           (awburst          ),
+        .awlock            (awlock           ),
+        .awcache           (awcache          ),
+        .awprot            (awprot           ),
+        .awvalid           (awvalid          ),
+        .awready           (awready          ),
+
+        .wid               (wid              ),
+        .wdata             (wdata            ),
+        .wstrb             (wstrb            ),
+        .wlast             (wlast            ),
+        .wvalid            (wvalid           ),
+        .wready            (wready           ),
+
+        .bid               (bid              ),
+        .bresp             (bresp            ),
+        .bvalid            (bvalid           ),
+        .bready            (bready           )
+    );
 endmodule
