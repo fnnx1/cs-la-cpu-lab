@@ -51,10 +51,14 @@
   //   （如 `wire to_es_to_ms_bus = {...}` —— 声明成 1 位了）它报不出来，
   //   那类要靠 verilator，配置见文件末尾（装好后可切换 linter）。
   //
-  // 当前启用：USTB 项目
-  "verilog.linting.iverilog.arguments": "-Wall -y USTB_loongarch32e-pipeline-CPU/rtl -y USTB_loongarch32e-pipeline-CPU/rtl/common USTB_loongarch32e-pipeline-CPU/rtl/common/tools.v",
-  // 切回 cdp 项目（mycpu_env/myCPU）时改用：
-  // "verilog.linting.iverilog.arguments": "-Wall -y cdp_ede_local-master/mycpu_env/myCPU cdp_ede_local-master/mycpu_env/myCPU/tools.v",
+  // 当前启用：cdp 项目（mycpu_env/myCPU，分支 axi-sram）
+  // -y myCPU        : mycpu_sram / sram_axi_bridge / csr / IF~WB_stage 按“模块名 = 文件名”补找
+  // -y myCPU/common : alu / regfile / stallable_pipeline 等
+  // tools.v         : decoder_* 文件名与模块名不一致，-y 找不到，必须显式列出
+  // iverilog_lint_stubs.v : 补上 Xilinx 除法 IP（div_signed / div_unsigned）
+  "verilog.linting.iverilog.arguments": "-Wall -y cdp_ede_local-master/mycpu_env/myCPU -y cdp_ede_local-master/mycpu_env/myCPU/common cdp_ede_local-master/mycpu_env/myCPU/common/tools.v .vscode/iverilog_lint_stubs.v",
+  // 切到 USTB 项目（USTB_loongarch32e-pipeline-CPU/rtl）时改用：
+  // "verilog.linting.iverilog.arguments": "-Wall -y USTB_loongarch32e-pipeline-CPU/rtl -y USTB_loongarch32e-pipeline-CPU/rtl/common USTB_loongarch32e-pipeline-CPU/rtl/common/tools.v",
 
   // ===================== 格式化：verible-verilog-format =====================
   // 选中代码后 Shift+Alt+F 即可；注意不支持“仅格式化选中范围”。
